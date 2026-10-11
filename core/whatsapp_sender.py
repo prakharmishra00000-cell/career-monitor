@@ -7,6 +7,7 @@ from core.database import (
     update_whatsapp_status, get_pending_whatsapp_leads,
     get_daily_action_count, log_activity
 )
+from core.live_monitor import record_live_event
 
 async def verify_whatsapp_login(page: Page) -> bool:
     """Checks if WhatsApp Web is logged in."""
@@ -66,6 +67,7 @@ async def dispatch_whatsapp_message(page: Page, lead: Dict[str, Any], max_daily_
 
         update_whatsapp_status(lead_id, "SENT", details=f"WhatsApp inquiry sent to +{clean_digits}")
         log_activity(lead_id, action_type="WHATSAPP", status="SUCCESS", details=f"Message delivered to {recruiter_name}")
+        record_live_event("WHATSAPP_SENT", f"Delivered WhatsApp inquiry to {recruiter_name} (+{clean_digits})")
         print(f"[WhatsApp] Message successfully delivered to {recruiter_name}!")
         return True
 

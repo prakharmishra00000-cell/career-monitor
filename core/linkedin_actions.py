@@ -10,6 +10,7 @@ from core.database import (
     get_daily_action_count, log_activity
 )
 from core.ai_evaluator import analyze_post
+from core.live_monitor import record_live_event
 
 async def verify_linkedin_login(page: Page, expected_profile_id: str = "prakhar-mishra-8aa426423") -> bool:
     """
@@ -57,6 +58,7 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
     search_url = f"https://www.linkedin.com/search/results/content/?keywords={encoded_q}&sortBy=%22date_posted%22"
     
     print(f"[Scanner] Searching LinkedIn: {query}")
+    record_live_event("SCANNING", f"Searching LinkedIn feed: {query}")
     try:
         await page.goto(search_url, timeout=40000)
         await human_delay(3, 6)

@@ -214,6 +214,7 @@ def main():
     parser.add_argument("--login", action="store_true", help="Launch browser to log in to LinkedIn & WhatsApp once")
     parser.add_argument("--run", action="store_true", help="Run 24/7 autonomous monitoring & outreach daemon")
     parser.add_argument("--stats", action="store_true", help="Display stats and activity logs")
+    parser.add_argument("--live", action="store_true", help="Display authentic real-time dashboard (no mock data)")
     parser.add_argument("--test-ai", action="store_true", help="Run AI evaluator test on sample job posts")
 
     args = parser.parse_args()
@@ -224,6 +225,9 @@ def main():
         asyncio.run(run_autonomous_loop())
     elif args.stats:
         display_stats()
+    elif args.live:
+        from core.live_monitor import render_realtime_terminal
+        render_realtime_terminal()
     elif args.test_ai:
         test_ai_module()
     else:
