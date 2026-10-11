@@ -96,27 +96,34 @@ python main.py --login
 3. In the second tab, scan the QR code on **WhatsApp Web** (`web.whatsapp.com`).
 4. Press **ENTER** in your terminal. Your session cookies and login tokens are permanently saved in `browser_data/chrome_profile`. You do not need to log in again.
 
-### Step 4: Launch 24/7 Autonomous Agent
+### Step 4: Launch 24/7 Autonomous Agent With Self-Healing Watchdog
 Run:
 ```bash
-python main.py --run
+python watchdog.py
 # or double-click run_24_7.bat
 ```
-The agent will run continuously in the background, performing periodic sweeps every 10–15 minutes, evaluating new posts, and executing outreach safely.
+The **Supervisor Watchdog** (`watchdog.py`) keeps the bot running 24/7 continuously:
+- If a temporary internet disconnect or browser crash occurs, it automatically applies self-healing exponential backoff and restarts the process.
+- It polls your GitHub repository every 3 minutes for remote directives.
 
 ---
 
-## Monitoring & Stats
-To check how many leads were found, DMs sent, and actions performed:
-```bash
-python main.py --stats
-# or double-click stats.bat
-```
+## Remote Management from GitHub (`prakharmishra00000-cell`)
+
+You can control the bot remotely from your phone or any browser without touching the machine running it:
+
+1. Create a repository on your GitHub named: `linkedin-automator-control` (under `prakharmishra00000-cell`).
+2. Add a file called `bot_control.json` (you can use [`config/bot_control.json`](config/bot_control.json) as a template).
+3. Live Directives you can trigger from GitHub:
+   - `"kill_switch_active": true`: Instantly pauses outreach remotely.
+   - `"stealth_cooldown_hours": 2`: Puts the bot into a stealth sleep if you want it to rest.
+   - `"dynamic_delay_multiplier": 2.0`: Doubles safety delays between actions during peak recruiter hours.
+   - `"channels"`: Selectively disable/enable DM, connection requests, comments, or WhatsApp.
+   - `"custom_search_queries"`: Add or update keywords dynamically without restarting the server!
 
 ---
 
-## Anti-Ban & Safety Protections
-To ensure your LinkedIn and WhatsApp accounts remain 100% in good standing:
-1. **Daily Action Quotas**: Defaults to max 20 connection requests/day and 35 DMs/day (customizable in `config/settings.yaml`).
-2. **Human Jitter**: Natural random delays (35s – 90s) between actions.
-3. **Session Persistence**: Reuses authentic browser cookies instead of creating new browser fingerprints.
+## Security & Profile Locking
+- **Strict Identity Enforcement**: The scraper checks your active profile URL upon launch. If the logged-in session does not match `prakhar-mishra-8aa426423` or your name, the engine halts immediately to prevent actions on any other account.
+- **WhatsApp Protection**: Outreach messages are strictly dispatched with Prakhar Mishra's credentials (`+91 6372843175`).
+
