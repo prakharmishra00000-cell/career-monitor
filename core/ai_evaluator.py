@@ -61,11 +61,22 @@ Your job is to analyze recruitment posts on LinkedIn deeply and personalize high
 CANDIDATE PROFILE:
 {profile_json}
 
+CRITICAL ROLE-SPECIFIC RULE (STRICT ENFORCEMENT):
+- Detect the EXACT single primary job role the recruiter is hiring for:
+  • "UI/UX Designer" OR
+  • "Prompt Engineer" OR
+  • "Web Developer"
+- ALL generated messages ("pitch_message", "connection_note", "comment_text", "whatsapp_pitch") MUST FOCUS 100% EXCLUSIVELY on that single role!
+- ABSOLUTE PROHIBITION: NEVER list multiple unrelated roles together. 
+  - If the role is for UI/UX Designer: Talk ONLY about UI/UX design, Figma, design systems, prototypes, and user interfaces. DO NOT mention web development, vibe coding, prompt engineering, or AI automation.
+  - If the role is for Prompt Engineer: Talk ONLY about prompt engineering, LLMs, structured outputs, agent workflows, and Gemini API. DO NOT mention UI/UX design or web development.
+  - If the role is for Web Developer: Talk ONLY about full-stack web development, rapid vibe coding, Next.js, React, and building production web applications. DO NOT mention UI/UX design or prompt engineering.
+
 RULES:
 1. Target Domains:
    - UI/UX Design (Figma, UX research, Design systems, mobile/web interfaces)
    - Prompt Engineering & Generative AI (LLM workflows, agents, system prompt architecture)
-   - Web Development / Vibe Coding (Fast, modern full-stack dev with AI, Next.js, React, Tailwind, Python)
+   - Web Development / Vibe Coding (Fast, modern full-stack dev with Next.js, React, Tailwind)
    If the post does NOT belong to any of these domains, mark is_relevant=false.
 
 2. Compensation Filter:
@@ -79,16 +90,16 @@ RULES:
 4. Contact Extraction:
    - Extract any WhatsApp or phone number explicitly provided for candidates to reach out.
 
-5. Personalized Messages to Generate:
-   - "pitch_message": An engaging, professional, and tailored pitch directly connecting the candidate's portfolio projects to the exact needs in the post. Keep tone genuine, competent, and direct.
-   - "connection_note": Short, punchy connection request note under 280 characters referencing the exact job post and candidate's domain fit.
-   - "comment_text": If requires_comment is true, write a polished, high-authority comment highlighting candidate's expertise in the required domain and attaching portfolio ({portfolio_url}).
-   - "whatsapp_pitch": If a WhatsApp number is found, write a crisp, professional WhatsApp chat message introducing candidate, referencing the specific post title, and providing portfolio link.
+5. Personalized Messages to Generate (Role Specific):
+   - "pitch_message": High-impact, tailored pitch focusing ONLY on the specific role requested.
+   - "connection_note": Short, punchy connection request note under 280 characters focusing ONLY on the specific role requested.
+   - "comment_text": If requires_comment is true, write a polished comment highlighting candidate's expertise in THAT specific role and attaching portfolio ({portfolio_url}).
+   - "whatsapp_pitch": If a WhatsApp number is found, write a crisp, professional WhatsApp chat message referencing THAT specific job opening and portfolio link.
 
 Return strictly valid JSON matching this schema:
 {{
   "is_relevant": true|false,
-  "domain_detected": "UI/UX" | "Prompt Engineering" | "Web Development / Vibe Coding" | "Other",
+  "domain_detected": "UI/UX Designer" | "Prompt Engineer" | "Web Developer" | "Other",
   "relevance_score": 0.0 to 1.0,
   "job_type": "job" | "internship" | "freelance",
   "is_paid": true|false,
@@ -154,17 +165,17 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
     is_paid = heuristic_check_paid(post_text)
     lowered = post_text.lower()
 
-    # Domain detection
+    # Strict single-domain detection
     domain = "Other"
     relevance_score = 0.0
-    if any(k in lowered for k in ["ui/ux", "ui ux", "product designer", "figma", "user experience", "interface design"]):
-        domain = "UI/UX"
+    if any(k in lowered for k in ["ui/ux", "ui ux", "product designer", "figma", "user experience", "ux designer", "ui designer"]):
+        domain = "UI/UX Designer"
         relevance_score = 0.95
     elif any(k in lowered for k in ["prompt engineer", "prompt engineering", "generative ai", "llm", "ai agent"]):
-        domain = "Prompt Engineering"
+        domain = "Prompt Engineer"
         relevance_score = 0.95
-    elif any(k in lowered for k in ["vibe coding", "web develop", "frontend", "full stack", "fullstack", "react", "next.js"]):
-        domain = "Web Development / Vibe Coding"
+    elif any(k in lowered for k in ["vibe coding", "web develop", "frontend", "full stack", "fullstack", "react", "next.js", "software engineer"]):
+        domain = "Web Developer"
         relevance_score = 0.90
 
     is_relevant = relevance_score >= 0.8
@@ -179,35 +190,77 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
 
     greeting_name = recruiter_name.split()[0] if recruiter_name else "there"
     my_name = profile.get("full_name", "Prakhar Mishra")
-    
-    pitch = (
-        f"Hi {greeting_name},\n\n"
-        f"I came across your post for the {domain} {job_type} and resonated with your requirements. "
-        f"I'm an AI Full-Stack Web Developer specialized in rapid vibe coding (Next.js/React/Tailwind), prompt engineering, and UI/UX product design.\n\n"
-        f"Recently, I built and deployed:\n"
-        f"• CareerHub AI (Live job discovery engine indexing 50K+ opportunities across 9+ sources)\n"
-        f"• ExamIntel (17-feature exam intelligence platform powered by Gemini AI)\n\n"
-        f"You can explore my live applications, case studies, and code here: {portfolio_url}\n\n"
-        f"I'd love to deliver fast, production-grade solutions for your team. Would you be open to a quick chat?"
-    )
 
-    connection_note = (
-        f"Hi {greeting_name}, noticed your {domain} opening! I build AI-powered web products & modern UI/UX via vibe coding. "
-        f"Live portfolio & projects: {portfolio_url}. Would love to connect and discuss!"
-    )[:280]
-
-    comment = (
-        f"Hi {greeting_name}, strongly interested in this {domain} {job_type}! "
-        f"I specialize in AI-assisted full-stack web development, prompt engineering, and responsive UI/UX. "
-        f"Explore my live products (CareerHub AI, ExamIntel) on my portfolio: {portfolio_url}. Looking forward to discussing!"
-    )
-
-    wa_pitch = (
-        f"Hello {greeting_name}, I saw your LinkedIn post regarding the {domain} {job_type} opening. "
-        f"I am actively applying. I build intelligent web apps & modern UI/UX (Next.js/Gemini AI/vibe coding). "
-        f"Live Portfolio: {portfolio_url} | GitHub: https://github.com/prakharmishra00000-cell\n"
-        f"Looking forward to hearing from you. Best regards, {my_name} (+91 6372843175)"
-    )
+    # Generate strictly role-specific messages
+    if domain == "UI/UX Designer":
+        pitch = (
+            f"Hi {greeting_name},\n\n"
+            f"I came across your post for the UI/UX Designer {job_type} and was immediately drawn to the role. "
+            f"As a UI/UX and Product Designer, I focus on crafting clean, intuitive, and accessible user experiences that convert.\n\n"
+            f"My work centers on:\n"
+            f"• Designing comprehensive Figma design systems, wireframes, and interactive prototypes\n"
+            f"• Structuring responsive layouts with slick micro-interactions and friction-free user journeys\n"
+            f"• Turning complex product requirements into elegant, usable digital interfaces\n\n"
+            f"You can explore my design systems, prototypes, and case studies on my live portfolio: {portfolio_url}\n\n"
+            f"I would love to bring high-velocity design execution to your team. Are you open to a brief chat?"
+        )
+        connection_note = (
+            f"Hi {greeting_name}, noticed your UI/UX Designer {job_type} opening! I specialize in Figma design systems, user flows & intuitive web/mobile UI. Portfolio: {portfolio_url}. Would love to connect and discuss!"
+        )[:280]
+        comment = (
+            f"Hi {greeting_name}, strongly interested in this UI/UX Designer {job_type}! I specialize in Figma design systems, modern interface design, and friction-free user experiences. Explore my design portfolio here: {portfolio_url}. Looking forward to connecting!"
+        )
+        wa_pitch = (
+            f"Hello {greeting_name}, I saw your LinkedIn post for the UI/UX Designer {job_type} opening. "
+            f"I specialize in UI/UX design, Figma design systems, and responsive user interfaces. "
+            f"Here is my live portfolio: {portfolio_url}. Best regards, {my_name} (+91 6372843175)"
+        )
+    elif domain == "Prompt Engineer":
+        pitch = (
+            f"Hi {greeting_name},\n\n"
+            f"I came across your post for the Prompt Engineer {job_type} and resonated with your requirements. "
+            f"I specialize in prompt engineering, LLM orchestration, and architecting production-grade generative AI workflows.\n\n"
+            f"My focus areas include:\n"
+            f"• Crafting resilient system prompts, structured JSON outputs, and multi-step reasoning chains\n"
+            f"• Integrating Google Gemini and OpenAI models into autonomous agent workflows\n"
+            f"• Building AI intelligence systems (like ExamIntel, an analytical platform with 17 Gemini-powered AI features)\n\n"
+            f"You can review my AI implementations and live projects on my portfolio: {portfolio_url}\n\n"
+            f"I'd love to discuss how I can help optimize your AI pipelines. Would you be open to a quick conversation?"
+        )
+        connection_note = (
+            f"Hi {greeting_name}, saw your Prompt Engineer {job_type} opening! I build resilient system prompts, structured outputs & multi-agent architectures (Gemini/OpenAI). Portfolio: {portfolio_url}. Would love to connect!"
+        )[:280]
+        comment = (
+            f"Hi {greeting_name}, very interested in this Prompt Engineer {job_type}! I specialize in structured prompt engineering, LLM agent pipelines, and Gemini API integration. Check out my live AI projects here: {portfolio_url}. Looking forward to connecting!"
+        )
+        wa_pitch = (
+            f"Hello {greeting_name}, I saw your LinkedIn post regarding the Prompt Engineer {job_type} opening. "
+            f"I specialize in prompt optimization, LLM agents, and structured outputs. "
+            f"Live portfolio: {portfolio_url}. Best regards, {my_name} (+91 6372843175)"
+        )
+    else:  # Web Developer
+        pitch = (
+            f"Hi {greeting_name},\n\n"
+            f"I saw your post for the Web Developer {job_type} and wanted to reach out. "
+            f"I'm a Full-Stack Web Developer specialized in rapid vibe coding, shipping production-grade web applications at speed.\n\n"
+            f"My technical stack & recent work:\n"
+            f"• Building fast, responsive applications using Next.js, React, TypeScript, and Tailwind CSS\n"
+            f"• Architecting robust APIs, seamless state management, and continuous Vercel deployments\n"
+            f"• Developed CareerHub AI, a real-time discovery engine indexing 50K+ live opportunities across 9+ sources\n\n"
+            f"You can explore my live applications, case studies, and GitHub code at: {portfolio_url}\n\n"
+            f"I'd love to deliver fast, scalable solutions for your codebase. Are you available for a quick chat?"
+        )
+        connection_note = (
+            f"Hi {greeting_name}, noticed your Web Developer {job_type} opening! I build fast, production-ready web apps via rapid vibe coding in Next.js & React. Live projects & code: {portfolio_url}. Would love to connect!"
+        )[:280]
+        comment = (
+            f"Hi {greeting_name}, strongly interested in this Web Developer {job_type}! I build production-grade web applications using Next.js, React, and rapid vibe coding. Explore CareerHub AI and my live projects at: {portfolio_url}. Looking forward to discussing!"
+        )
+        wa_pitch = (
+            f"Hello {greeting_name}, I saw your LinkedIn post for the Web Developer {job_type} opening. "
+            f"I build modern full-stack web applications using Next.js, React, and rapid vibe coding. "
+            f"Live portfolio & GitHub: {portfolio_url}. Best regards, {my_name} (+91 6372843175)"
+        )
 
     return {
         "is_relevant": is_relevant,
