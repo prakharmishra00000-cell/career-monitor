@@ -37,7 +37,8 @@ rate_limits:
 
 browser:
   headless: false # Set to false to inspect or debug; can be true for 24/7 background
-  user_data_dir: "browser_data/chrome_profile" # Persistent session for login preservation
+  channel: "msedge" # Uses Microsoft Edge
+  user_data_dir: "browser_data/edge_profile" # Persistent session for login preservation
   viewport:
     width: 1366
     height: 768

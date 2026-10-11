@@ -49,12 +49,14 @@ class BrowserManager:
             "--start-maximized"
         ]
 
+        channel_name = self.settings.get("browser", {}).get("channel", "msedge")
+
         self.context = await self.playwright.chromium.launch_persistent_context(
             user_data_dir=self.user_data_dir,
             headless=self.headless,
-            channel="chrome", # Will use installed Google Chrome or bundled chromium
+            channel=channel_name, # Configured for Microsoft Edge
             viewport={"width": 1366, "height": 768},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
             args=args,
             slow_mo=self.settings.get("browser", {}).get("slow_mo_ms", 50)
         )
