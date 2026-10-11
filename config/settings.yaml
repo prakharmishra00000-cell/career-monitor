@@ -1,0 +1,50 @@
+# LinkedIn & WhatsApp Autonomous Job Outreach Settings
+
+bot:
+  name: "AutoCareer-Agent"
+  version: "1.0.0"
+  check_interval_minutes: 10 # Frequency of feed scans (in minutes)
+  check_connections_interval_minutes: 15 # Frequency of accepted connection checks
+
+search_queries:
+  - '("UI/UX Designer" OR "Product Designer") (hiring OR "job opening" OR "paid internship")'
+  - '("Prompt Engineer" OR "AI Engineer") (hiring OR "job opening" OR "paid internship")'
+  - '("Web Developer" OR "Full Stack" OR "Frontend") "vibe coding" (hiring OR "opportunity")'
+  - '"UI UX" "internship" "stipend"'
+  - '"Prompt Engineering" "internship" "paid"'
+  - '"vibe coding" (developer OR engineer OR builder)'
+
+filters:
+  strict_paid_only: true
+  unpaid_blacklist_keywords:
+    - "unpaid"
+    - "no stipend"
+    - "without stipend"
+    - "free internship"
+    - "volunteer"
+    - "experience only"
+    - "equity only"
+    - "non-paid"
+    - "un-paid"
+
+rate_limits:
+  max_connection_requests_per_day: 20
+  max_direct_messages_per_day: 35
+  max_comments_per_day: 25
+  max_whatsapp_messages_per_day: 20
+  min_delay_between_actions_seconds: 35
+  max_delay_between_actions_seconds: 90
+
+browser:
+  headless: false # Set to false to inspect or debug; can be true for 24/7 background
+  user_data_dir: "browser_data/chrome_profile" # Persistent session for login preservation
+  viewport:
+    width: 1366
+    height: 768
+  slow_mo_ms: 100
+
+channels:
+  enable_linkedin_dm: true
+  enable_linkedin_connect: true
+  enable_linkedin_comment: true
+  enable_whatsapp: true

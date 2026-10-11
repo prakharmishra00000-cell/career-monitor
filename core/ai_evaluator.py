@@ -1,0 +1,225 @@
+import json
+import os
+import re
+from typing import Dict, Any, Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Pre-compiled Regex for Phone/WhatsApp numbers
+PHONE_REGEX = re.compile(
+    r'(?:(?:\+|00)[1-9]\d{0,3}[\s\-\.]?)?(?:\(?\d{2,5}\)?[\s\-\.]?)?\d{3,5}[\s\-\.]?\d{3,5}'
+)
+WHATSAPP_KEYWORDS = ["whatsapp", "wa.me", "ping on", "reach out on", "contact on", "dm or wa", "text on"]
+
+def load_profile() -> Dict[str, Any]:
+    profile_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "portfolio_profile.json")
+    try:
+        with open(profile_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[Warning] Failed to load profile: {e}")
+        return {}
+
+def extract_potential_phone_number(text: str) -> Optional[str]:
+    """Extracts phone number, prioritizing proximity to WhatsApp keywords."""
+    lowered = text.lower()
+    for kw in WHATSAPP_KEYWORDS:
+        if kw in lowered:
+            idx = lowered.find(kw)
+            chunk = text[max(0, idx - 20) : min(len(text), idx + 80)]
+            matches = PHONE_REGEX.findall(chunk)
+            for m in matches:
+                clean_digits = re.sub(r'\D', '', m)
+                if 10 <= len(clean_digits) <= 15:
+                    return clean_digits
+
+    # Fallback to general phone match
+    matches = PHONE_REGEX.findall(text)
+    for m in matches:
+        clean_digits = re.sub(r'\D', '', m)
+        if 10 <= len(clean_digits) <= 15:
+            return clean_digits
+    return None
+
+def heuristic_check_paid(text: str) -> bool:
+    """Fast heuristic check to detect unpaid markers."""
+    lowered = text.lower()
+    unpaid_markers = [
+        "unpaid", "un-paid", "non-paid", "without stipend", "no stipend", 
+        "free internship", "volunteer", "experience only", "equity only", "college credit only"
+    ]
+    for marker in unpaid_markers:
+        if marker in lowered:
+            return False
+    return True
+
+SYSTEM_PROMPT = """
+You are an expert AI Job Evaluator and Career Agent.
+Your job is to analyze recruitment posts on LinkedIn deeply and personalize high-converting outreach messages.
+
+CANDIDATE PROFILE:
+{profile_json}
+
+RULES:
+1. Target Domains:
+   - UI/UX Design (Figma, UX research, Design systems, mobile/web interfaces)
+   - Prompt Engineering & Generative AI (LLM workflows, agents, system prompt architecture)
+   - Web Development / Vibe Coding (Fast, modern full-stack dev with AI, Next.js, React, Tailwind, Python)
+   If the post does NOT belong to any of these domains, mark is_relevant=false.
+
+2. Compensation Filter:
+   - Must be PAID (paid full-time/part-time job OR paid internship).
+   - If the post states "unpaid", "no stipend", "free", or lacks any compensation for an internship, mark is_paid=false.
+
+3. Recruiter Instructions Detection:
+   - Check if recruiter explicitly asked readers to comment (e.g. "Comment 'Interested' below", "Comment with your portfolio link", "Drop your resume in comments").
+   - If yes, set requires_comment=true.
+
+4. Contact Extraction:
+   - Extract any WhatsApp or phone number explicitly provided for candidates to reach out.
+
+5. Personalized Messages to Generate:
+   - "pitch_message": An engaging, professional, and tailored pitch directly connecting the candidate's portfolio projects to the exact needs in the post. Keep tone genuine, competent, and direct.
+   - "connection_note": Short, punchy connection request note under 280 characters referencing the exact job post and candidate's domain fit.
+   - "comment_text": If requires_comment is true, write a polished, high-authority comment highlighting candidate's expertise in the required domain and attaching portfolio ({portfolio_url}).
+   - "whatsapp_pitch": If a WhatsApp number is found, write a crisp, professional WhatsApp chat message introducing candidate, referencing the specific post title, and providing portfolio link.
+
+Return strictly valid JSON matching this schema:
+{{
+  "is_relevant": true|false,
+  "domain_detected": "UI/UX" | "Prompt Engineering" | "Web Development / Vibe Coding" | "Other",
+  "relevance_score": 0.0 to 1.0,
+  "job_type": "job" | "internship" | "freelance",
+  "is_paid": true|false,
+  "recruiter_instructions": "string or none",
+  "whatsapp_number": "string or null",
+  "requires_comment": true|false,
+  "pitch_message": "string",
+  "connection_note": "string (under 280 chars)",
+  "comment_text": "string",
+  "whatsapp_pitch": "string"
+}}
+"""
+
+def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
+    profile = load_profile()
+    portfolio_url = profile.get("portfolio_url", "https://yashportfolio.dev")
+    extracted_wa = extract_potential_phone_number(post_text)
+
+    # First check API key
+    api_key = os.getenv("GEMINI_API_KEY")
+    if api_key and api_key != "your_gemini_api_key_here":
+        try:
+            # Check modern google-genai SDK
+            try:
+                from google import genai
+                client = genai.Client(api_key=api_key)
+                formatted_prompt = SYSTEM_PROMPT.format(
+                    profile_json=json.dumps(profile, indent=2),
+                    portfolio_url=portfolio_url
+                )
+                user_content = f"RECRUITER NAME: {recruiter_name}\n\nPOST CONTENT:\n{post_text}"
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=[formatted_prompt, user_content],
+                    config={"response_mime_type": "application/json"}
+                )
+                result = json.loads(response.text)
+                if not result.get("whatsapp_number") and extracted_wa:
+                    result["whatsapp_number"] = extracted_wa
+                return result
+            except ImportError:
+                # Try google.generativeai legacy package
+                import google.generativeai as gai
+                gai.configure(api_key=api_key)
+                model = gai.GenerativeModel("gemini-1.5-flash")
+                formatted_prompt = SYSTEM_PROMPT.format(
+                    profile_json=json.dumps(profile, indent=2),
+                    portfolio_url=portfolio_url
+                )
+                user_content = f"RECRUITER NAME: {recruiter_name}\n\nPOST CONTENT:\n{post_text}"
+                resp = model.generate_content([formatted_prompt, user_content])
+                clean_text = resp.text.strip()
+                if clean_text.startswith("```"):
+                    clean_text = clean_text.split("\n", 1)[1].rsplit("\n", 1)[0]
+                result = json.loads(clean_text)
+                if not result.get("whatsapp_number") and extracted_wa:
+                    result["whatsapp_number"] = extracted_wa
+                return result
+        except Exception as e:
+            print(f"[AI Evaluator] Gemini API error, falling back to local heuristic evaluator: {e}")
+
+    # Robust Local Heuristic Evaluator (runs even if no API key is provided)
+    is_paid = heuristic_check_paid(post_text)
+    lowered = post_text.lower()
+
+    # Domain detection
+    domain = "Other"
+    relevance_score = 0.0
+    if any(k in lowered for k in ["ui/ux", "ui ux", "product designer", "figma", "user experience", "interface design"]):
+        domain = "UI/UX"
+        relevance_score = 0.95
+    elif any(k in lowered for k in ["prompt engineer", "prompt engineering", "generative ai", "llm", "ai agent"]):
+        domain = "Prompt Engineering"
+        relevance_score = 0.95
+    elif any(k in lowered for k in ["vibe coding", "web develop", "frontend", "full stack", "fullstack", "react", "next.js"]):
+        domain = "Web Development / Vibe Coding"
+        relevance_score = 0.90
+
+    is_relevant = relevance_score >= 0.8
+    is_internship = any(k in lowered for k in ["intern", "internship", "trainee", "stipend"])
+    job_type = "internship" if is_internship else "job"
+
+    # Comment requirement
+    requires_comment = any(k in lowered for k in [
+        "comment below", "comment 'interested'", "drop your portfolio", 
+        "drop portfolio", "drop resume", "comment your email", "comment below with"
+    ])
+
+    greeting_name = recruiter_name.split()[0] if recruiter_name else "there"
+    my_name = profile.get("full_name", "Prakhar Mishra")
+    
+    pitch = (
+        f"Hi {greeting_name},\n\n"
+        f"I came across your post for the {domain} {job_type} and resonated with your requirements. "
+        f"I'm an AI Full-Stack Web Developer specialized in rapid vibe coding (Next.js/React/Tailwind), prompt engineering, and UI/UX product design.\n\n"
+        f"Recently, I built and deployed:\n"
+        f"• CareerHub AI (Live job discovery engine indexing 50K+ opportunities across 9+ sources)\n"
+        f"• ExamIntel (17-feature exam intelligence platform powered by Gemini AI)\n\n"
+        f"You can explore my live applications, case studies, and code here: {portfolio_url}\n\n"
+        f"I'd love to deliver fast, production-grade solutions for your team. Would you be open to a quick chat?"
+    )
+
+    connection_note = (
+        f"Hi {greeting_name}, noticed your {domain} opening! I build AI-powered web products & modern UI/UX via vibe coding. "
+        f"Live portfolio & projects: {portfolio_url}. Would love to connect and discuss!"
+    )[:280]
+
+    comment = (
+        f"Hi {greeting_name}, strongly interested in this {domain} {job_type}! "
+        f"I specialize in AI-assisted full-stack web development, prompt engineering, and responsive UI/UX. "
+        f"Explore my live products (CareerHub AI, ExamIntel) on my portfolio: {portfolio_url}. Looking forward to discussing!"
+    )
+
+    wa_pitch = (
+        f"Hello {greeting_name}, I saw your LinkedIn post regarding the {domain} {job_type} opening. "
+        f"I am actively applying. I build intelligent web apps & modern UI/UX (Next.js/Gemini AI/vibe coding). "
+        f"Live Portfolio: {portfolio_url} | GitHub: https://github.com/prakharmishra00000-cell\n"
+        f"Looking forward to hearing from you. Best regards, {my_name} (+91 6372843175)"
+    )
+
+    return {
+        "is_relevant": is_relevant,
+        "domain_detected": domain,
+        "relevance_score": relevance_score,
+        "job_type": job_type,
+        "is_paid": is_paid,
+        "recruiter_instructions": "Comment or direct reach out requested" if requires_comment else "Direct reach out",
+        "whatsapp_number": extracted_wa,
+        "requires_comment": requires_comment,
+        "pitch_message": pitch,
+        "connection_note": connection_note,
+        "comment_text": comment,
+        "whatsapp_pitch": wa_pitch
+    }

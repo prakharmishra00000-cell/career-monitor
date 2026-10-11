@@ -1,0 +1,22 @@
+{
+  "owner": "prakharmishra00000-cell",
+  "authorized_profile": "prakhar-mishra-8aa426423",
+  "kill_switch_active": false,
+  "stealth_cooldown_hours": 0,
+  "dynamic_delay_multiplier": 1.0,
+  "status_message": "Bot active 24/7 across UI/UX, Prompt Engineering, and Vibe Coding",
+  "channels": {
+    "direct_message": true,
+    "connection_request": true,
+    "comments": true,
+    "whatsapp": true
+  },
+  "custom_search_queries": [
+    "(\"UI/UX Designer\" OR \"Product Designer\") (hiring OR \"job opening\" OR \"paid internship\")",
+    "(\"Prompt Engineer\" OR \"AI Engineer\") (hiring OR \"job opening\" OR \"paid internship\")",
+    "(\"Web Developer\" OR \"Full Stack\" OR \"Frontend\") \"vibe coding\" (hiring OR \"opportunity\")",
+    "\"UI UX\" \"internship\" \"stipend\"",
+    "\"Prompt Engineering\" \"internship\" \"paid\"",
+    "\"vibe coding\" (developer OR engineer OR builder)"
+  ]
+}

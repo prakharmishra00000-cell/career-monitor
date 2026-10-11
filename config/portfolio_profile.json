@@ -1,0 +1,62 @@
+{
+  "full_name": "Prakhar Mishra",
+  "title": "AI Full-Stack Web Developer & UI/UX Product Builder",
+  "email": "prakharmishra00000@gmail.com",
+  "phone": "+916372843175",
+  "portfolio_url": "https://prakhar-mishra-portfolio.vercel.app/",
+  "github_url": "https://github.com/prakharmishra00000-cell",
+  "linkedin_url": "https://www.linkedin.com/in/prakhar-mishra-8aa426423",
+  "required_linkedin_profile_id": "prakhar-mishra-8aa426423",
+  "experience_summary": "AI Full-Stack Web Developer combining structured systems thinking with modern vibe coding and prompt engineering to build high-impact, intelligent digital products.",
+  "domains": [
+    {
+      "name": "Web Development & Vibe Coding",
+      "tools": ["Next.js", "React", "TypeScript", "Tailwind CSS", "Node.js", "Vercel", "FastAPI", "Full-Stack APIs"],
+      "summary": "Rapid vibe coding and AI-assisted engineering moving swiftly from concept to high-speed production deployments. Creator of CareerHub AI, ExamIntel, and PrepOS AI."
+    },
+    {
+      "name": "Prompt Engineering & Generative AI",
+      "tools": ["Google Gemini", "OpenAI", "AI Agent Development", "Prompt Optimization", "Structured Outputs", "AI APIs"],
+      "summary": "Building production AI pipelines, autonomous agents, dynamic roadmap engines, and interactive LLM mentors."
+    },
+    {
+      "name": "UI/UX & Product Design",
+      "tools": ["Responsive Design Systems", "Modern Web Interfaces", "Wireframing", "Micro-interactions", "User Experience"],
+      "summary": "Designing modern, clean, and user-centric interfaces. Built and deployed responsive frontends with slick animations and friction-free user journeys."
+    }
+  ],
+  "featured_projects": [
+    {
+      "title": "CareerHub AI",
+      "role": "Real-Time Career & Job Discovery Engine",
+      "description": "Aggregates live opportunities across 9+ sources (LinkedIn, Indeed, Glassdoor, etc.) with 0% mock data, indexing 50K+ opportunities across 40+ engineering streams.",
+      "live_url": "https://careerhub-ai-ruby.vercel.app/",
+      "github_url": "https://github.com/prakharmishra00000-cell/careerhub-ai"
+    },
+    {
+      "title": "ExamIntel",
+      "role": "AI Exam Intelligence Platform",
+      "description": "Enterprise-grade 17-feature exam intelligence platform with dynamic dependency mapping and Gemini-powered mentoring.",
+      "live_url": "https://my-project-teal-two-91.vercel.app/",
+      "github_url": "https://github.com/prakharmishra00000-cell/examintel"
+    },
+    {
+      "title": "Nexron AI",
+      "role": "Living AI Learning Roadmap",
+      "description": "Intelligent roadmap engine featuring live AI curriculum generation, dynamic schedule replanning, and career mentoring.",
+      "live_url": "https://studyflow-ai-tau-drab.vercel.app/"
+    },
+    {
+      "title": "PrepOS AI",
+      "role": "Enterprise AI Career Preparation OS",
+      "description": "Unified AI operating system with placement digital twins, mock interview simulators, and in-browser coding IDE.",
+      "live_url": "https://placement-prep-ai-tau.vercel.app/"
+    }
+  ],
+  "preferences": {
+    "open_to": ["Full-time Job", "Part-time Job", "Paid Internship", "Contract / Project"],
+    "reject_unpaid": true,
+    "min_stipend_internship_inr": 15000,
+    "min_salary_job_inr": 600000
+  }
+}

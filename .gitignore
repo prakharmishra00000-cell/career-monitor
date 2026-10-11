@@ -1,0 +1,18 @@
+# Credentials & Secrets
+.env
+
+# Database & SQLite files
+*.db
+automator.db
+
+# Browser session cache & cookies
+browser_data/
+*.local
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Local logs
+logs/
+*.log
