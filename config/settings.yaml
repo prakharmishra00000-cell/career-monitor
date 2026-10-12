@@ -12,11 +12,13 @@ search_queries:
   - 'Prompt Engineer hiring'
   - 'Prompt Engineer fresher paid'
   - 'Web Developer fresher hiring'
-  - 'Mechanical Engineering fresher hiring 2027'
-  - 'Mechanical fresher hiring backlogs allowed'
+  - 'Mechanical fresher hiring 2027 batch'
+  - 'Mechanical Engineering fresher backlogs allowed'
+  - 'Mechanical fresher no minimum cgpa criteria'
   - 'Mechanical Engineer fresher no percentage criteria'
   - 'Mechanical Engineer internship stipend 2027'
-  - 'Mechanical Engineering graduate trainee hiring'
+  - 'Graduate Engineer Trainee Mechanical 2027'
+  - 'GET Mechanical Engineering fresher hiring'
 
 filters:
   strict_paid_only: true

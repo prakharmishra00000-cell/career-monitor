@@ -23,6 +23,11 @@
       "name": "UI/UX & Product Design",
       "tools": ["Responsive Design Systems", "Modern Web Interfaces", "Wireframing", "Micro-interactions", "User Experience"],
       "summary": "Designing modern, clean, and user-centric interfaces. Built and deployed responsive frontends with slick animations and friction-free user journeys."
+    },
+    {
+      "name": "Mechanical Engineering (2027 Batch)",
+      "tools": ["SolidWorks", "AutoCAD", "CAD/CAM", "Product Design", "Manufacturing Processes", "Thermodynamics", "GET Trainee"],
+      "summary": "Mechanical Engineering fresher (2027 batch) with solid practical foundation in CAD modeling, SolidWorks, mechanical engineering design, and industrial operations."
     }
   ],
   "featured_projects": [
