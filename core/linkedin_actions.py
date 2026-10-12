@@ -59,6 +59,28 @@ async def verify_linkedin_login(page: Page, expected_profile_id: str = "prakhar-
         print(f"[LinkedIn Check] Verification error: {e}")
         return True
 
+async def resolve_direct_post_link(context, author_url: str) -> str:
+    """Navigates to author's recent activity feed to extract the exact direct post permalink."""
+    if not author_url or "linkedin.com/in/" not in author_url:
+        return ""
+    activity_url = f"{author_url.rstrip('/')}/recent-activity/all/"
+    try:
+        temp_page = await context.new_page()
+        await temp_page.goto(activity_url, timeout=25000)
+        await asyncio.sleep(2)
+        links = await temp_page.evaluate("""
+        () => {
+            const anchors = Array.from(document.querySelectorAll('a')).map(a => a.href);
+            return anchors.filter(h => h.includes('/feed/update/') || h.includes('/posts/'));
+        }
+        """)
+        await temp_page.close()
+        if links:
+            return links[0].split('?')[0]
+    except Exception as e:
+        print(f"[LinkResolver] Note resolving activity link: {e}")
+    return ""
+
 async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -> List[Dict[str, Any]]:
     """Searches LinkedIn for recent posts matching target keywords."""
     encoded_q = urllib.parse.quote(query)
@@ -181,33 +203,6 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
             else:
                 post_url = ""  # NEVER fallback to profile URL or search URL
 
-            # Mandatory Gate: Discard if direct post link is unavailable
-            if not post_url or not ("/feed/update/" in post_url or "/posts/" in post_url):
-                print(f"[Filter] Discarding post {post_id}: direct post link unavailable.")
-                lead_data = {
-                    "post_id": post_id,
-                    "post_url": "",
-                    "recruiter_name": recruiter_name,
-                    "recruiter_profile_url": recruiter_profile_url,
-                    "post_text": post_text,
-                    "job_type": "job",
-                    "is_paid": 0,
-                    "domain_detected": "Other",
-                    "relevance_score": 0.0,
-                    "recruiter_instructions": "",
-                    "whatsapp_number": None,
-                    "requires_comment": 0,
-                    "comment_text": "",
-                    "pitch_message": "",
-                    "connection_note": "",
-                    "whatsapp_pitch": "",
-                    "status": "REJECTED_NO_DIRECT_LINK",
-                    "comment_status": "NONE",
-                    "whatsapp_status": "NONE"
-                }
-                insert_lead(lead_data)
-                continue
-
             # Deep AI Evaluation of the Post
             analysis = analyze_post(post_text, recruiter_name=recruiter_name)
             
@@ -291,9 +286,9 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
                 has_salary_or_ctc = any(s in raw_lower for s in salary_ctc_cues)
 
                 # Strict requirement:
-                # Must have direct post link + 2026/2027/2028/fresher + NO experience required + CTC/LPA present + Backlog allowed/No CGPA present + NO prohibited cutoffs
-                if not post_url or not has_target_batch or has_experience_required or has_prohibited or not (has_allowed_backlog or has_no_cgpa) or not has_salary_or_ctc:
-                    print(f"[Filter] Discarding Mechanical post {post_id}: does not meet direct-post-link + 2026-2028 batch + CTC/LPA + backlogs-allowed/no-CGPA criteria.")
+                # Must be 2026/2027/2028/fresher + NO experience required + CTC/LPA present + Backlog allowed/No CGPA present + NO prohibited cutoffs
+                if not has_target_batch or has_experience_required or has_prohibited or not (has_allowed_backlog or has_no_cgpa) or not has_salary_or_ctc:
+                    print(f"[Filter] Discarding Mechanical post {post_id}: does not meet 2026-2028 batch + CTC/LPA + backlogs-allowed/no-CGPA criteria.")
                     lead_data = {
                         "post_id": post_id,
                         "post_url": post_url,
@@ -318,7 +313,38 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
                     insert_lead(lead_data)
                     continue
 
-            # Qualified lead!
+            # Qualified lead! Resolve direct permalink from recruiter profile if missing!
+            if not post_url and recruiter_profile_url and "linkedin.com/in/" in recruiter_profile_url:
+                print(f"[LinkResolver] Resolving direct post permalink for {recruiter_name} ({recruiter_profile_url})...")
+                post_url = await resolve_direct_post_link(page.context, recruiter_profile_url)
+
+            # Final verification: If direct post link could not be verified, discard so "Link unavailable" never appears
+            if not post_url or not ("/feed/update/" in post_url or "/posts/" in post_url):
+                print(f"[Filter] Discarding post {post_id}: direct post link could not be verified.")
+                lead_data = {
+                    "post_id": post_id,
+                    "post_url": "",
+                    "recruiter_name": recruiter_name,
+                    "recruiter_profile_url": recruiter_profile_url,
+                    "post_text": post_text,
+                    "job_type": analysis.get("job_type", "job"),
+                    "is_paid": 1 if analysis.get("is_paid") else 0,
+                    "domain_detected": analysis.get("domain_detected", "Other"),
+                    "relevance_score": 0.0,
+                    "recruiter_instructions": "",
+                    "whatsapp_number": None,
+                    "requires_comment": 0,
+                    "comment_text": "",
+                    "pitch_message": "",
+                    "connection_note": "",
+                    "whatsapp_pitch": "",
+                    "status": "REJECTED_NO_DIRECT_LINK",
+                    "comment_status": "NONE",
+                    "whatsapp_status": "NONE"
+                }
+                insert_lead(lead_data)
+                continue
+
             comment_status = "PENDING" if analysis.get("requires_comment") else "NONE"
             whatsapp_status = "PENDING" if analysis.get("whatsapp_number") else "NONE"
 
