@@ -116,13 +116,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     tbody.innerHTML = data.leads.map(ld => {
                         let targetLevelBadge = '';
                         if (ld.domain_detected === 'Mechanical Engineer') {
-                            targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ Backlogs Allowed • No Min CGPA</span>`;
+                            targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ 2026-2028 Freshers • Backlogs Allowed • No Min CGPA • CTC Mentioned</span>`;
                         } else {
                             const levelText = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Entry / Junior';
                             targetLevelBadge = `<span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${levelText}</span>`;
                         }
 
-                        const postLink = ld.post_url ? `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:13px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>` : `<span style="color:#6b7280; font-size:12px;">Link unavailable</span>`;
+                        const isValidPostLink = ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/'));
+                        const postLink = isValidPostLink ? `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:13px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>` : `<span style="color:#6b7280; font-size:12px;">Link unavailable</span>`;
 
                         return `
                         <tr>
@@ -188,6 +189,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
+                          AND (domain_detected != 'Mechanical Engineer' OR (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%'))
                         ORDER BY id DESC LIMIT 30
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]

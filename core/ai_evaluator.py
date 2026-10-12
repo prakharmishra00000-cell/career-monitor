@@ -86,10 +86,13 @@ RULES:
    - TARGET CANDIDATE IS A FRESHER / 2027 BATCH / COLLEGE STUDENT / JUNIOR.
    - General roles: Reject posts requiring 3+ to 5+ years senior experience.
 
-3. MECHANICAL 2027 BATCH STRICT ELIGIBILITY FILTER (MANDATORY POSITIVE MENTION):
+3. MECHANICAL ENGINEERING STRICT CRITERIA (2026, 2027, 2028 FRESHERS ONLY):
    - For all Mechanical Engineering posts:
+     * THE POST MUST BE STRICTLY FOR FRESHERS / BATCH 2026, 2027, OR 2028 ONLY (Zero experienced roles; immediately reject any requirement of 1+ years, 2+ years, etc.).
+     * THE POST MUST EXPLICITLY MENTION CTC / LPA / SALARY / STIPEND IN THE POST TEXT.
      * THE POST MUST EXPLICITLY STATE THAT ACTIVE BACKLOGS ARE ALLOWED, OR THAT THERE IS NO MINIMUM CGPA / PERCENTAGE REQUIRED (e.g. mentions "active backlogs allowed", "backlogs allowed", "backlogs accepted", "no percentage criteria", "no minimum cgpa", "no cgpa criteria", "evaluated purely on skill/test").
      * ABSOLUTE REJECTION: If a Mechanical post does NOT explicitly mention that active backlogs are allowed or that no minimum CGPA is required, you MUST set is_relevant=false!
+     * ABSOLUTE REJECTION: If a Mechanical post does NOT state salary, CTC, or stipend, you MUST set is_relevant=false!
      * ABSOLUTE REJECTION: If a Mechanical post states "no backlogs allowed", "no active backlogs", "zero backlogs", or demands a minimum cutoff like "min 60%/70%/75%", you MUST set is_relevant=false!
 
 4. Compensation Filter:
@@ -191,6 +194,13 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
         domain = "Web Developer"
         relevance_score = 0.90
     elif any(k in lowered for k in ["mechanical engineer", "mechanical engineering", "cad", "solidworks", "get mechanical", "graduate engineer trainee", "mechanical fresher", "autocad"]):
+        # Freshers / 2026, 2027, 2028 batch only (zero experienced roles)
+        batch_cues = ["2026", "2027", "2028", "fresher", "freshers", "intern", "internship", "graduate engineer trainee", "get trainee", "entry level", "junior engineer"]
+        has_target_batch = any(b in lowered for b in batch_cues)
+
+        experienced_cues = ["years of experience", "years experience", "yr experience", "yrs experience", "1+ year", "2+ year", "3+ year", "4+ year", "5+ year", "senior", "lead engineer"]
+        has_experience_required = any(exp in lowered for exp in experienced_cues)
+
         # Check strict negative criteria for Mechanical:
         no_backlog_markers = ["no active backlogs", "no backlogs", "zero backlogs", "without backlogs", "cleared all backlogs"]
         min_cgpa_markers = ["min 60%", "min 65%", "min 70%", "min 75%", "minimum 60%", "minimum 65%", "minimum 70%", "minimum 75%", "6.0 cgpa", "6.5 cgpa", "7.0 cgpa", "7.5 cgpa", "8.0 cgpa", "60% throughout", "70% throughout", "75% throughout"]
@@ -199,22 +209,20 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
         has_min_cgpa_rule = any(m in lowered for m in min_cgpa_markers)
 
         # STRICT POSITIVE REQUIREMENT: Must explicitly mention backlogs allowed OR no minimum CGPA/percentage
-        positive_backlog_markers = ["active backlog", "backlog allowed", "backlogs allowed", "backlogs accepted", "with backlogs", "allow backlogs", "standing arrears"]
+        positive_backlog_markers = ["active backlog", "backlog allowed", "backlogs allowed", "backlogs accepted", "with backlogs", "with backlog", "allow backlogs", "standing arrears", "arrear allowed"]
         positive_no_cgpa_markers = ["no minimum cgpa", "no cgpa", "no percentage", "no minimum percentage", "no cutoff", "no criteria", "any percentage", "any cgpa", "skill based", "practical test"]
+        salary_ctc_markers = ["lpa", "ctc", "per annum", "/annum", "inr", "salary", "stipend", "pm", "/month", "per month"]
 
         has_positive_backlog = any(m in lowered for m in positive_backlog_markers)
         has_positive_no_cgpa = any(m in lowered for m in positive_no_cgpa_markers)
+        has_salary_or_ctc = any(s in lowered for s in salary_ctc_markers)
 
-        if has_no_backlog_rule or has_min_cgpa_rule:
+        if not has_target_batch or has_experience_required or has_no_backlog_rule or has_min_cgpa_rule or not (has_positive_backlog or has_positive_no_cgpa) or not has_salary_or_ctc:
             domain = "Other"
             relevance_score = 0.0
-        elif has_positive_backlog or has_positive_no_cgpa:
+        else:
             domain = "Mechanical Engineer"
             relevance_score = 0.98
-        else:
-            # Does not explicitly mention backlogs allowed or no CGPA -> Reject
-            domain = "Other"
-            relevance_score = 0.0
 
     is_relevant = relevance_score >= 0.8
     is_internship = any(k in lowered for k in ["intern", "internship", "trainee", "stipend"])
