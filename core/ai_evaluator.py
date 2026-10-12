@@ -82,13 +82,18 @@ RULES:
    - Mechanical Engineering (Design, CAD, SolidWorks, Graduate Engineer Trainee, Manufacturing, R&D)
    If the post does NOT belong to any of these domains, mark is_relevant=false.
 
-2. Experience & Seniority Filter (STRICT ENFORCEMENT):
+2. Experience & Seniority Filter:
    - TARGET CANDIDATE IS A FRESHER / 2027 BATCH / COLLEGE STUDENT / JUNIOR.
-   - For Mechanical Engineering roles: Prioritize freshers, 2026/2027 batches, GET (Graduate Engineer Trainee), roles where active backlogs are allowed, or where no strict minimum percentage/CGPA criteria is imposed.
-   - If a post imposes strict high cutoff criteria (e.g. "Strictly 85%+ or 8.5 CGPA with zero backlogs throughout") or requires 3+ to 5+ years senior experience, reject it (is_relevant=false).
-   - If a post is open to freshers, allows active backlogs, has no minimum CGPA, or evaluates candidates purely on practical engineering skills/tests, mark is_relevant=true.
+   - General roles: Reject posts requiring 3+ to 5+ years senior experience.
 
-3. Compensation Filter:
+3. MECHANICAL 2027 BATCH STRICT ELIGIBILITY FILTER (ABSOLUTE ENFORCEMENT):
+   - For all Mechanical Engineering posts:
+     * MUST ALLOW ACTIVE BACKLOGS OR HAVE NO RESTRICTION ON BACKLOGS.
+     * MUST NOT DEMAND A MINIMUM CGPA OR PERCENTAGE CUTOFF (e.g. Reject if post mentions "no active backlogs", "zero backlogs", "min 60%", "min 65%", "min 70%", "min 75%", "7.0 CGPA", "7.5 CGPA", "8.0 CGPA", etc.).
+     * ABSOLUTE REJECTION: If a Mechanical post says "No backlogs allowed", "Strictly no active backlogs", "Minimum 60%/70%/75%", or "6.5+ CGPA required", you MUST set is_relevant=false!
+     * ONLY ACCEPT if the recruiter explicitly states "active backlogs allowed", "backlogs allowed", "no percentage criteria", "no CGPA criteria", "evaluated purely on technical test/skills", OR has zero criteria on marks/backlogs.
+
+4. Compensation Filter:
    - Must be PAID (paid full-time/part-time job OR paid internship).
    - If the post states "unpaid", "no stipend", "free", or lacks any compensation for an internship, mark is_paid=false.
 
@@ -187,8 +192,20 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
         domain = "Web Developer"
         relevance_score = 0.90
     elif any(k in lowered for k in ["mechanical engineer", "mechanical engineering", "cad", "solidworks", "get mechanical", "graduate engineer trainee", "mechanical fresher", "autocad"]):
-        domain = "Mechanical Engineer"
-        relevance_score = 0.92
+        # Check strict negative criteria for Mechanical:
+        # If post explicitly demands no backlogs or minimum percentage, reject immediately!
+        no_backlog_markers = ["no active backlogs", "no backlogs", "zero backlogs", "without backlogs", "cleared all backlogs"]
+        min_cgpa_markers = ["min 60%", "min 65%", "min 70%", "min 75%", "minimum 60%", "minimum 65%", "minimum 70%", "minimum 75%", "6.0 cgpa", "6.5 cgpa", "7.0 cgpa", "7.5 cgpa", "8.0 cgpa", "60% throughout", "70% throughout", "75% throughout"]
+
+        has_no_backlog_rule = any(m in lowered for m in no_backlog_markers)
+        has_min_cgpa_rule = any(m in lowered for m in min_cgpa_markers)
+
+        if has_no_backlog_rule or has_min_cgpa_rule:
+            domain = "Other"
+            relevance_score = 0.0
+        else:
+            domain = "Mechanical Engineer"
+            relevance_score = 0.95
 
     is_relevant = relevance_score >= 0.8
     is_internship = any(k in lowered for k in ["intern", "internship", "trainee", "stipend"])
