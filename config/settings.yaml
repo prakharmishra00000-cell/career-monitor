@@ -7,12 +7,13 @@ bot:
   check_connections_interval_minutes: 15 # Frequency of accepted connection checks
 
 search_queries:
-  - '("UI/UX Designer" OR "Product Designer") (hiring OR "job opening" OR "paid internship")'
-  - '("Prompt Engineer" OR "AI Engineer") (hiring OR "job opening" OR "paid internship")'
-  - '("Web Developer" OR "Full Stack" OR "Frontend") "vibe coding" (hiring OR "opportunity")'
-  - '"UI UX" "internship" "stipend"'
-  - '"Prompt Engineering" "internship" "paid"'
-  - '"vibe coding" (developer OR engineer OR builder)'
+  - 'UI UX Designer hiring paid'
+  - 'UI UX Designer fresher hiring'
+  - 'Prompt Engineer hiring'
+  - 'Prompt Engineer fresher paid'
+  - 'Web Developer fresher hiring'
+  - 'UI UX Designer internship stipend'
+  - 'Frontend Developer vibe coding hiring'
 
 filters:
   strict_paid_only: true
@@ -45,7 +46,7 @@ browser:
   slow_mo_ms: 100
 
 channels:
-  enable_linkedin_dm: true
-  enable_linkedin_connect: true
-  enable_linkedin_comment: true
-  enable_whatsapp: true
+  enable_linkedin_dm: false
+  enable_linkedin_connect: false
+  enable_linkedin_comment: false
+  enable_whatsapp: false

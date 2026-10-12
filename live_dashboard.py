@@ -61,26 +61,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             </div>
         </header>
 
-        <div class="grid">
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
             <div class="card">
-                <div class="card-label">Current Stage</div>
+                <div class="card-label">Scanner Status</div>
                 <div class="card-value" id="currentStage" style="color: var(--accent);">INITIALIZING</div>
                 <div class="card-sub" id="lastActive">Checking...</div>
             </div>
             <div class="card">
-                <div class="card-label">Total Leads Scanned</div>
+                <div class="card-label">Qualified Leads Discovered</div>
                 <div class="card-value" id="totalLeads">0</div>
-                <div class="card-sub">UI/UX • Prompt Eng • Vibe Coding</div>
-            </div>
-            <div class="card">
-                <div class="card-label">DMs Sent Today</div>
-                <div class="card-value" id="dmCount">0</div>
-                <div class="card-sub">Safe Max: 35/day</div>
-            </div>
-            <div class="card">
-                <div class="card-label">Connection Invites</div>
-                <div class="card-value" id="connectCount">0</div>
-                <div class="card-sub">Safe Max: 20/day</div>
+                <div class="card-sub">Freshers & Interns • UI/UX • AI/Prompt • Web Dev</div>
             </div>
         </div>
 
@@ -93,17 +83,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Recruiter / Author</th>
-                    <th>Domain</th>
-                    <th>Role Type</th>
+                    <th>Role</th>
+                    <th>Target Level</th>
+                    <th>Recruiter Profile</th>
+                    <th>Direct Post Link</th>
                     <th>Compensation</th>
-                    <th>Outreach Status</th>
+                    <th>Status</th>
                     <th>WhatsApp</th>
-                    <th>Timestamp</th>
+                    <th>Time</th>
                 </tr>
             </thead>
             <tbody id="leadsTableBody">
-                <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Awaiting first live sweep...</td></tr>
+                <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading live opportunities...</td></tr>
             </tbody>
         </table>
 
@@ -121,25 +112,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 document.getElementById('currentStage').innerText = data.current_stage || 'IDLE';
                 document.getElementById('lastActive').innerText = 'Last Event: ' + (data.last_active || 'Just now');
                 document.getElementById('totalLeads').innerText = data.stats.total_leads || 0;
-                document.getElementById('dmCount').innerText = data.quotas.dm || 0;
-                document.getElementById('connectCount').innerText = data.quotas.connect || 0;
 
                 const tbody = document.getElementById('leadsTableBody');
                 if (data.leads && data.leads.length > 0) {
-                    tbody.innerHTML = data.leads.map(ld => `
+                    tbody.innerHTML = data.leads.map(ld => {
+                        const targetLevel = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Entry / Junior';
+                        const recProfile = ld.recruiter_profile_url ? `<a href="${ld.recruiter_profile_url}" target="_blank" style="color:#60a5fa; text-decoration:none; font-weight:600;">👤 ${ld.recruiter_name || 'Recruiter'}</a>` : `<span style="color:#9ca3af;">${ld.recruiter_name || 'Recruiter'}</span>`;
+                        const postLink = ld.post_url ? `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:600; font-size:13px; background:rgba(52,211,153,0.18); padding:4px 10px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post</a>` : `<span style="color:#6b7280; font-size:12px;">N/A</span>`;
+
+                        return `
                         <tr>
                             <td>#${ld.id}</td>
-                            <td><strong>${ld.recruiter_name}</strong></td>
-                            <td>${ld.domain_detected}</td>
-                            <td>${ld.job_type}</td>
+                            <td><strong style="color:#f3f4f6;">${ld.domain_detected}</strong></td>
+                            <td><span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${targetLevel}</span></td>
+                            <td>${recProfile}</td>
+                            <td>${postLink}</td>
                             <td><span class="tag ${ld.is_paid ? 'tag-paid' : 'tag-unpaid'}">${ld.is_paid ? 'PAID' : 'UNPAID'}</span></td>
                             <td><span class="tag tag-status">${ld.status}</span></td>
-                            <td>${ld.whatsapp_status}</td>
+                            <td>${ld.whatsapp_status || 'NONE'}</td>
                             <td style="color: var(--text-muted); font-size: 12px;">${ld.created_at}</td>
                         </tr>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 24px; color: var(--text-muted);">No records found in database yet. Launching live scrape...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding: 24px; color: var(--text-muted);">No records found in database yet. Launching live scrape...</td></tr>';
                 }
 
                 if (data.recent_events && data.recent_events.length > 0) {
@@ -186,8 +182,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 with get_connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT id, recruiter_name, domain_detected, job_type, is_paid, status, whatsapp_status, created_at
-                        FROM leads ORDER BY id DESC LIMIT 15
+                        SELECT id, recruiter_name, recruiter_profile_url, post_url, domain_detected, job_type, is_paid, status, whatsapp_status, created_at
+                        FROM leads ORDER BY id DESC LIMIT 25
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
             except Exception:
@@ -213,8 +209,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 def run_dashboard_server(port: int = 5000):
-    server = HTTPServer(("127.0.0.1", port), DashboardHandler)
-    print(f"\n[Live Dashboard] Running at http://127.0.0.1:{port}")
+    server = HTTPServer(("0.0.0.0", port), DashboardHandler)
+    print(f"\n[Live Dashboard] Running on all interfaces at port {port}")
     server.serve_forever()
 
 if __name__ == "__main__":

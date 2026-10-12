@@ -79,7 +79,12 @@ RULES:
    - Web Development / Vibe Coding (Fast, modern full-stack dev with Next.js, React, Tailwind)
    If the post does NOT belong to any of these domains, mark is_relevant=false.
 
-2. Compensation Filter:
+2. Experience & Seniority Filter (STRICT ENFORCEMENT):
+   - TARGET CANDIDATE IS A FRESHER / COLLEGE STUDENT / JUNIOR.
+   - Posts MUST BE suited for freshers, college students, interns, or junior/entry-level positions (0-2 years experience).
+   - ABSOLUTE REJECTION: If a post explicitly requires SENIOR level experience (e.g. "Senior", "Lead", "Staff", "5+ years", "3+ years", "4+ years", "8+ years"), you MUST set is_relevant=false! Do NOT outreach to senior/lead postings.
+
+3. Compensation Filter:
    - Must be PAID (paid full-time/part-time job OR paid internship).
    - If the post states "unpaid", "no stipend", "free", or lacks any compensation for an internship, mark is_paid=false.
 

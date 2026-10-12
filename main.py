@@ -151,13 +151,14 @@ async def run_autonomous_loop():
             console.print(f"\n[bold blue][{now_str}] Starting Scanning & Outreach Cycle (Synced with GitHub)...[/bold blue]")
             remote_mgr.emit_heartbeat(status="SCANNING", last_action=f"Cycle started at {now_str}", leads_discovered=0)
 
-            # 1. Check for Accepted Connections & Instantly Dispatch Deep AI Pitch
-            if (time.time() - last_conn_check_time) >= (conn_check_mins * 60):
-                console.print("[cyan]Checking for newly accepted connection requests...[/cyan]")
-                sent_followups = await check_and_message_accepted_connections(page)
-                if sent_followups > 0:
-                    console.print(f"[bold green]Delivered {sent_followups} instant follow-up pitches to new connections![/bold green]")
-                last_conn_check_time = time.time()
+            # 1. Check for Accepted Connections (Only if DMs are enabled)
+            if settings.get("channels", {}).get("enable_linkedin_dm", False):
+                if (time.time() - last_conn_check_time) >= (conn_check_mins * 60):
+                    console.print("[cyan]Checking for newly accepted connection requests...[/cyan]")
+                    sent_followups = await check_and_message_accepted_connections(page)
+                    if sent_followups > 0:
+                        console.print(f"[bold green]Delivered {sent_followups} instant follow-up pitches to new connections![/bold green]")
+                    last_conn_check_time = time.time()
 
             # 2. Search & Ingest Matching Posts
             queries = settings.get("search_queries", [])
@@ -165,26 +166,31 @@ async def run_autonomous_loop():
                 try:
                     leads = await search_and_ingest_posts(page, query=query, max_posts=5)
                     for lead in leads:
-                        # Outreach Dispatch
-                        if settings.get("channels", {}).get("enable_linkedin_dm", True):
-                            outreach_result = await send_profile_outreach(
-                                page, lead,
-                                max_dm_quota=rate_limits.get("max_direct_messages_per_day", 35),
-                                max_connect_quota=rate_limits.get("max_connection_requests_per_day", 20)
-                            )
-                            console.print(f"[Lead {lead['id']}] Outreach result: {outreach_result}")
-                            await human_delay(
-                                rate_limits.get("min_delay_between_actions_seconds", 35),
-                                rate_limits.get("max_delay_between_actions_seconds", 90)
-                            )
+                        try:
+                            # Outreach Dispatch (DM or Connection Request)
+                            if settings.get("channels", {}).get("enable_linkedin_dm", True):
+                                outreach_result = await send_profile_outreach(
+                                    page, lead,
+                                    max_dm_quota=rate_limits.get("max_direct_messages_per_day", 35),
+                                    max_connect_quota=rate_limits.get("max_connection_requests_per_day", 20)
+                                )
+                                print(f"[Lead {lead['id']}] Outreach result: {outreach_result}")
+                                await human_delay(
+                                    rate_limits.get("min_delay_between_actions_seconds", 35),
+                                    rate_limits.get("max_delay_between_actions_seconds", 90)
+                                )
 
-                        # Comment Dispatch (if requested by recruiter)
-                        if lead.get("requires_comment") and settings.get("channels", {}).get("enable_linkedin_comment", True):
-                            await post_recruiter_comment(page, lead)
-                            await human_delay(20, 45)
+                            # Comment Dispatch (if requested by recruiter)
+                            if lead.get("requires_comment") and settings.get("channels", {}).get("enable_linkedin_comment", True):
+                                await post_recruiter_comment(page, lead)
+                                await human_delay(20, 45)
+
+                        except Exception as lead_err:
+                            print(f"[Lead {lead.get('id')}] Error during outreach: {lead_err}")
+                            await human_delay(5, 10)
 
                 except Exception as e:
-                    console.print(f"[red]Error during query '{query}': {e}[/red]")
+                    print(f"[Query Error] Error during query '{query}': {e}")
                     await human_delay(10, 20)
 
             # 3. Process Pending WhatsApp Inquiries

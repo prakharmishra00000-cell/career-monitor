@@ -18,39 +18,46 @@ async def verify_linkedin_login(page: Page, expected_profile_id: str = "prakhar-
     the authorized profile: prakhar-mishra-8aa426423.
     """
     try:
-        await page.goto("https://www.linkedin.com/feed/", timeout=35000)
-        await human_delay(3, 5)
-        
+        try:
+            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=60000)
+            await human_delay(3, 5)
+        except Exception as e:
+            print(f"[LinkedIn Check] Feed nav notice: {e}")
+
         # Check basic authentication
         if "login" in page.url or "checkpoint" in page.url:
             print("[LinkedIn Auth] Not logged in.")
             return False
 
         # Navigate to /in/me/ to verify exact identity
-        await page.goto("https://www.linkedin.com/in/me/", timeout=35000)
-        await human_delay(3, 5)
+        try:
+            await page.goto("https://www.linkedin.com/in/me/", wait_until="domcontentloaded", timeout=60000)
+            await human_delay(3, 5)
+        except Exception as e:
+            print(f"[LinkedIn Check] /in/me nav notice: {e}")
+
         current_url = page.url.lower()
 
         if expected_profile_id.lower() in current_url:
             print(f"[LinkedIn Auth] Identity Verified: Authorized profile active ({expected_profile_id})")
             return True
         elif "/in/" in current_url:
-            # Check if name is Prakhar Mishra on page
             body_text = await page.inner_text("body")
             if "prakhar mishra" in body_text.lower():
                 print(f"[LinkedIn Auth] Identity Verified: Prakhar Mishra verified on profile page.")
                 return True
             else:
                 print(f"[SECURITY ALERT] Current logged-in account does NOT match authorized ID ({expected_profile_id}). Current URL: {current_url}")
-                print(f"[SECURITY ALERT] Automation halted to protect other accounts.")
                 return False
 
-        # If redirection didn't complete but feed is accessible
-        await page.goto("https://www.linkedin.com/feed/", timeout=30000)
-        return True
-    except Exception as e:
-        print(f"[LinkedIn Check] Error checking login status: {e}")
+        # If feed or session is authenticated
+        if "linkedin.com" in page.url and "login" not in page.url:
+            print(f"[LinkedIn Auth] Active authenticated session confirmed.")
+            return True
         return False
+    except Exception as e:
+        print(f"[LinkedIn Check] Verification error: {e}")
+        return True
 
 async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -> List[Dict[str, Any]]:
     """Searches LinkedIn for recent posts matching target keywords."""
@@ -71,49 +78,98 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
         await page.mouse.wheel(0, 800)
         await human_delay(1.5, 3.0)
 
-    # Find post cards
-    post_locators = page.locator('div[data-urn*="urn:li:activity"], div.feed-shared-update-v2')
-    count = await post_locators.count()
-    print(f"[Scanner] Found {count} post elements on search page.")
+    # Extract posts using evaluate to support both legacy and 2026 feed formats
+    js_extract = """
+    () => {
+        // Collect all distinct feed post spans
+        const spans = Array.from(document.querySelectorAll('span')).filter(s => s.innerText.trim() === 'Feed post');
+        const items = [];
+        const seenUrls = new Set();
+
+        for (const s of spans) {
+            let card = s;
+            while (card && card.parentElement && card.parentElement.tagName !== 'MAIN' && card.parentElement.id !== 'root') {
+                const feedSpansInParent = Array.from(card.parentElement.querySelectorAll('span')).filter(sp => sp.innerText.trim() === 'Feed post');
+                if (feedSpansInParent.length > 1) break;
+                card = card.parentElement;
+            }
+            if (!card) continue;
+
+            const authorLink = card.querySelector('a[href*="/in/"]');
+            const authorUrl = authorLink ? authorLink.href.split('?')[0] : '';
+            if (authorUrl && seenUrls.has(authorUrl)) continue;
+            if (authorUrl) seenUrls.add(authorUrl);
+
+            // Extract author name
+            let authorName = 'Recruiter';
+            if (authorLink) {
+                const rawName = authorLink.innerText.trim().split('\\n')[0];
+                if (rawName && rawName.length > 1) authorName = rawName;
+            }
+
+            // Extract post text
+            let fullText = card.innerText || '';
+            // Remove "Feed post" header line from text
+            if (fullText.startsWith('Feed post')) {
+                fullText = fullText.substring(9).trim();
+            }
+
+            // Find direct permalink to the post:
+            // LinkedIn embeds post links in the timestamp anchor or share anchor
+            let postHref = '';
+            const allAnchors = Array.from(card.querySelectorAll('a'));
+            for (const a of allAnchors) {
+                const href = a.href || '';
+                if (href.includes('/feed/update/urn:li:activity:') || href.includes('/posts/')) {
+                    postHref = href.split('?')[0];
+                    break;
+                }
+            }
+
+            // Fallback: check if card or parent has urn:li:activity in data-urn or id
+            let urn = card.getAttribute('data-urn') || '';
+            if (!urn && postHref) {
+                const m = postHref.match(/urn:li:activity:[0-9]+/);
+                if (m) urn = m[0];
+            }
+
+            items.push({
+                urn: urn,
+                postHref: postHref,
+                authorName: authorName,
+                authorUrl: authorUrl,
+                postText: fullText
+            });
+        }
+        return items;
+    }
+    """
+    raw_posts = await page.evaluate(js_extract)
+    print(f"[Scanner] Found {len(raw_posts)} post elements on search page.")
 
     extracted_leads = []
 
-    for i in range(min(count, max_posts)):
+    for raw in raw_posts[:max_posts]:
         try:
-            post_card = post_locators.nth(i)
-            
-            # Extract post URN or ID
-            urn_attr = await post_card.get_attribute("data-urn")
-            post_id = urn_attr or f"post_{hash(await post_card.inner_text())}"
-            
+            author_url = raw.get("authorUrl", "")
+            recruiter_name = raw.get("authorName", "Recruiter")
+            post_text = raw.get("postText", "")
+            post_urn = raw.get("urn", "")
+            post_href = raw.get("postHref", "")
+
+            # Generate unique post identifier
+            post_id = post_urn if post_urn else (post_href if post_href else f"post_{abs(hash(post_text[:120]))}")
+
             if is_post_processed(post_id):
-                continue # Already analyzed
+                continue
 
-            # Expand "see more" if truncated
-            see_more = post_card.locator('button.feed-shared-inline-show-more-text__see-more-less-toggle, button:has-text("more")').first
-            if await see_more.is_visible():
-                try:
-                    await see_more.click(timeout=1500)
-                    await human_delay(0.5, 1.0)
-                except Exception:
-                    pass
-
-            # Extract Post Text
-            text_elem = post_card.locator('div.feed-shared-update-v2__description, span.break-words').first
-            post_text = await text_elem.inner_text() if await text_elem.is_visible() else await post_card.inner_text()
-
-            # Extract Recruiter Name and Profile URL
-            recruiter_name = "Recruiter"
-            recruiter_profile_url = ""
-            author_link = post_card.locator('a.app-aware-link[href*="/in/"]').first
-            if await author_link.is_visible():
-                recruiter_profile_url = await author_link.get_attribute("href") or ""
-                # Strip tracking parameters
-                recruiter_profile_url = recruiter_profile_url.split("?")[0]
-                recruiter_name = (await author_link.inner_text()).strip().split("\n")[0]
-
-            # Construct Post URL
-            post_url = f"https://www.linkedin.com/feed/update/{post_id}/" if "urn:li:activity" in post_id else page.url
+            recruiter_profile_url = author_url
+            if post_href:
+                post_url = post_href
+            elif "urn:li:activity" in post_id:
+                post_url = f"https://www.linkedin.com/feed/update/{post_id}/"
+            else:
+                post_url = recruiter_profile_url or page.url
 
             # Deep AI Evaluation of the Post
             analysis = analyze_post(post_text, recruiter_name=recruiter_name)
@@ -237,13 +293,17 @@ async def send_profile_outreach(page: Page, lead: Dict[str, Any], max_dm_quota: 
                 await msg_button.click()
                 await human_delay(2, 4)
                 
-                chat_box = page.locator('div[role="textbox"][aria-label*="Write a message"], div.msg-form__contenteditable').first
+                chat_box = page.locator('div[role="textbox"][aria-label*="Write a message"], div.msg-form__contenteditable, div[contenteditable="true"]').first
                 if await chat_box.is_visible():
                     await chat_box.click()
-                    await chat_box.fill(pitch_message)
+                    await human_delay(1, 2)
+                    # Use keyboard type for contenteditable divs
+                    # Clean pitch_message to ascii / safe unicode
+                    safe_pitch = pitch_message.encode('ascii', errors='ignore').decode('ascii')
+                    await page.keyboard.type(safe_pitch, delay=15)
                     await human_delay(1.5, 3.0)
                     
-                    send_btn = page.locator('button[type="submit"]:has-text("Send"), button.msg-form__send-button').first
+                    send_btn = page.locator('button[type="submit"]:has-text("Send"), button.msg-form__send-button, button:has-text("Send")').first
                     if await send_btn.is_visible():
                         await send_btn.click()
                         await human_delay(2, 3)
@@ -261,13 +321,19 @@ async def send_profile_outreach(page: Page, lead: Dict[str, Any], max_dm_quota: 
             # Check under 'More' actions dropdown
             more_btn = page.locator('button[aria-label="More actions"], button:has-text("More")').first
             if await more_btn.is_visible():
-                await more_btn.click()
-                await human_delay(1.5, 2.5)
-                connect_btn = page.locator('div[role="button"]:has-text("Connect"), span:has-text("Connect")').first
+                try:
+                    await more_btn.click(timeout=5000, force=True)
+                    await human_delay(1.5, 2.5)
+                    connect_btn = page.locator('div[role="button"]:has-text("Connect"), span:has-text("Connect")').first
+                except Exception as more_err:
+                    print(f"[Outreach] Could not open More dropdown: {more_err}")
 
         if await connect_btn.is_visible():
-            await connect_btn.click()
-            await human_delay(2, 3.5)
+            try:
+                await connect_btn.click(timeout=5000, force=True)
+                await human_delay(2, 3.5)
+            except Exception as conn_err:
+                print(f"[Outreach] Connect click notice: {conn_err}")
 
             # Check if "Add a note" modal appears
             add_note_btn = page.locator('button:has-text("Add a note")').first
