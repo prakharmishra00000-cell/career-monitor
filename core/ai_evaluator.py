@@ -65,24 +65,28 @@ CRITICAL ROLE-SPECIFIC RULE (STRICT ENFORCEMENT):
 - Detect the EXACT single primary job role the recruiter is hiring for:
   • "UI/UX Designer" OR
   • "Prompt Engineer" OR
-  • "Web Developer"
+  • "Web Developer" OR
+  • "Mechanical Engineer"
 - ALL generated messages ("pitch_message", "connection_note", "comment_text", "whatsapp_pitch") MUST FOCUS 100% EXCLUSIVELY on that single role!
 - ABSOLUTE PROHIBITION: NEVER list multiple unrelated roles together. 
-  - If the role is for UI/UX Designer: Talk ONLY about UI/UX design, Figma, design systems, prototypes, and user interfaces. DO NOT mention web development, vibe coding, prompt engineering, or AI automation.
-  - If the role is for Prompt Engineer: Talk ONLY about prompt engineering, LLMs, structured outputs, agent workflows, and Gemini API. DO NOT mention UI/UX design or web development.
-  - If the role is for Web Developer: Talk ONLY about full-stack web development, rapid vibe coding, Next.js, React, and building production web applications. DO NOT mention UI/UX design or prompt engineering.
+  - If the role is for UI/UX Designer: Talk ONLY about UI/UX design, Figma, design systems, prototypes, and user interfaces.
+  - If the role is for Prompt Engineer: Talk ONLY about prompt engineering, LLMs, structured outputs, agent workflows, and Gemini API.
+  - If the role is for Web Developer: Talk ONLY about full-stack web development, rapid vibe coding, Next.js, React, and building production web applications.
+  - If the role is for Mechanical Engineer: Talk ONLY about mechanical engineering, CAD/SolidWorks, product design, manufacturing fundamentals, and entry-level engineering.
 
 RULES:
 1. Target Domains:
    - UI/UX Design (Figma, UX research, Design systems, mobile/web interfaces)
    - Prompt Engineering & Generative AI (LLM workflows, agents, system prompt architecture)
    - Web Development / Vibe Coding (Fast, modern full-stack dev with Next.js, React, Tailwind)
+   - Mechanical Engineering (Design, CAD, SolidWorks, Graduate Engineer Trainee, Manufacturing, R&D)
    If the post does NOT belong to any of these domains, mark is_relevant=false.
 
 2. Experience & Seniority Filter (STRICT ENFORCEMENT):
-   - TARGET CANDIDATE IS A FRESHER / COLLEGE STUDENT / JUNIOR.
-   - Posts MUST BE suited for freshers, college students, interns, or junior/entry-level positions (0-2 years experience).
-   - ABSOLUTE REJECTION: If a post explicitly requires SENIOR level experience (e.g. "Senior", "Lead", "Staff", "5+ years", "3+ years", "4+ years", "8+ years"), you MUST set is_relevant=false! Do NOT outreach to senior/lead postings.
+   - TARGET CANDIDATE IS A FRESHER / 2027 BATCH / COLLEGE STUDENT / JUNIOR.
+   - For Mechanical Engineering roles: Prioritize freshers, 2026/2027 batches, GET (Graduate Engineer Trainee), roles where active backlogs are allowed, or where no strict minimum percentage/CGPA criteria is imposed.
+   - If a post imposes strict high cutoff criteria (e.g. "Strictly 85%+ or 8.5 CGPA with zero backlogs throughout") or requires 3+ to 5+ years senior experience, reject it (is_relevant=false).
+   - If a post is open to freshers, allows active backlogs, has no minimum CGPA, or evaluates candidates purely on practical engineering skills/tests, mark is_relevant=true.
 
 3. Compensation Filter:
    - Must be PAID (paid full-time/part-time job OR paid internship).
@@ -104,9 +108,9 @@ RULES:
 Return strictly valid JSON matching this schema:
 {{
   "is_relevant": true|false,
-  "domain_detected": "UI/UX Designer" | "Prompt Engineer" | "Web Developer" | "Other",
+  "domain_detected": "UI/UX Designer" | "Prompt Engineer" | "Web Developer" | "Mechanical Engineer" | "Other",
   "relevance_score": 0.0 to 1.0,
-  "job_type": "job" | "internship" | "freelance",
+  "job_type": "job" | "internship" | "freelance" | "trainee",
   "is_paid": true|false,
   "recruiter_instructions": "string or none",
   "whatsapp_number": "string or null",
@@ -182,6 +186,9 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
     elif any(k in lowered for k in ["vibe coding", "web develop", "frontend", "full stack", "fullstack", "react", "next.js", "software engineer"]):
         domain = "Web Developer"
         relevance_score = 0.90
+    elif any(k in lowered for k in ["mechanical engineer", "mechanical engineering", "cad", "solidworks", "get mechanical", "graduate engineer trainee", "mechanical fresher", "autocad"]):
+        domain = "Mechanical Engineer"
+        relevance_score = 0.92
 
     is_relevant = relevance_score >= 0.8
     is_internship = any(k in lowered for k in ["intern", "internship", "trainee", "stipend"])
@@ -197,7 +204,28 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
     my_name = profile.get("full_name", "Prakhar Mishra")
 
     # Generate strictly role-specific messages
-    if domain == "UI/UX Designer":
+    if domain == "Mechanical Engineer":
+        pitch = (
+            f"Hi {greeting_name},\n\n"
+            f"I came across your post for the Mechanical Engineering {job_type} opportunity and wanted to reach out. "
+            f"I have a strong foundation in mechanical design, CAD modeling, and engineering problem-solving.\n\n"
+            f"Key competencies:\n"
+            f"• 3D CAD modeling, drafting, and tolerance analysis using SolidWorks & AutoCAD\n"
+            f"• Core fundamentals in design analysis, materials, and manufacturing processes\n"
+            f"• Eager to contribute directly in hands-on engineering, product development, or manufacturing operations\n\n"
+            f"I am available to join and contribute immediately. Would you be open to connecting for a quick discussion?"
+        )
+        connection_note = (
+            f"Hi {greeting_name}, saw your Mechanical Engineering opening! Strong foundation in CAD design, SolidWorks, and core engineering principles. Eager to contribute immediately. Would love to connect!"
+        )[:280]
+        comment = (
+            f"Hi {greeting_name}, very interested in this Mechanical Engineering {job_type}! Solid foundation in CAD modeling and mechanical design principles. Looking forward to connecting and sharing my resume."
+        )
+        wa_pitch = (
+            f"Hello {greeting_name}, I saw your LinkedIn post for the Mechanical Engineering {job_type}. "
+            f"I specialize in CAD modeling, SolidWorks, and mechanical design. Best regards, {my_name} (+91 6372843175)"
+        )
+    elif domain == "UI/UX Designer":
         pitch = (
             f"Hi {greeting_name},\n\n"
             f"I came across your post for the UI/UX Designer {job_type} and was immediately drawn to the role. "

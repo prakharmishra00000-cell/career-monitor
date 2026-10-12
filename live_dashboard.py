@@ -70,7 +70,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <div class="card">
                 <div class="card-label">Qualified Leads Discovered</div>
                 <div class="card-value" id="totalLeads">0</div>
-                <div class="card-sub">Freshers & Interns • UI/UX • AI/Prompt • Web Dev</div>
+                <div class="card-sub">Freshers & Interns • Mechanical • UI/UX • AI/Prompt • Web Dev</div>
             </div>
         </div>
 
@@ -208,9 +208,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+
 def run_dashboard_server(port: int = 5000):
-    server = HTTPServer(("0.0.0.0", port), DashboardHandler)
-    print(f"\n[Live Dashboard] Running on all interfaces at port {port}")
+    server = ThreadingHTTPServer(("0.0.0.0", port), DashboardHandler)
+    print(f"\n[Live Dashboard] Multi-threaded server running on all interfaces at port {port}")
     server.serve_forever()
 
 if __name__ == "__main__":
