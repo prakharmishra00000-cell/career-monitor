@@ -86,12 +86,11 @@ RULES:
    - TARGET CANDIDATE IS A FRESHER / 2027 BATCH / COLLEGE STUDENT / JUNIOR.
    - General roles: Reject posts requiring 3+ to 5+ years senior experience.
 
-3. MECHANICAL 2027 BATCH STRICT ELIGIBILITY FILTER (ABSOLUTE ENFORCEMENT):
+3. MECHANICAL 2027 BATCH STRICT ELIGIBILITY FILTER (MANDATORY POSITIVE MENTION):
    - For all Mechanical Engineering posts:
-     * MUST ALLOW ACTIVE BACKLOGS OR HAVE NO RESTRICTION ON BACKLOGS.
-     * MUST NOT DEMAND A MINIMUM CGPA OR PERCENTAGE CUTOFF (e.g. Reject if post mentions "no active backlogs", "zero backlogs", "min 60%", "min 65%", "min 70%", "min 75%", "7.0 CGPA", "7.5 CGPA", "8.0 CGPA", etc.).
-     * ABSOLUTE REJECTION: If a Mechanical post says "No backlogs allowed", "Strictly no active backlogs", "Minimum 60%/70%/75%", or "6.5+ CGPA required", you MUST set is_relevant=false!
-     * ONLY ACCEPT if the recruiter explicitly states "active backlogs allowed", "backlogs allowed", "no percentage criteria", "no CGPA criteria", "evaluated purely on technical test/skills", OR has zero criteria on marks/backlogs.
+     * THE POST MUST EXPLICITLY STATE THAT ACTIVE BACKLOGS ARE ALLOWED, OR THAT THERE IS NO MINIMUM CGPA / PERCENTAGE REQUIRED (e.g. mentions "active backlogs allowed", "backlogs allowed", "backlogs accepted", "no percentage criteria", "no minimum cgpa", "no cgpa criteria", "evaluated purely on skill/test").
+     * ABSOLUTE REJECTION: If a Mechanical post does NOT explicitly mention that active backlogs are allowed or that no minimum CGPA is required, you MUST set is_relevant=false!
+     * ABSOLUTE REJECTION: If a Mechanical post states "no backlogs allowed", "no active backlogs", "zero backlogs", or demands a minimum cutoff like "min 60%/70%/75%", you MUST set is_relevant=false!
 
 4. Compensation Filter:
    - Must be PAID (paid full-time/part-time job OR paid internship).
@@ -193,19 +192,29 @@ def analyze_post(post_text: str, recruiter_name: str = "") -> Dict[str, Any]:
         relevance_score = 0.90
     elif any(k in lowered for k in ["mechanical engineer", "mechanical engineering", "cad", "solidworks", "get mechanical", "graduate engineer trainee", "mechanical fresher", "autocad"]):
         # Check strict negative criteria for Mechanical:
-        # If post explicitly demands no backlogs or minimum percentage, reject immediately!
         no_backlog_markers = ["no active backlogs", "no backlogs", "zero backlogs", "without backlogs", "cleared all backlogs"]
         min_cgpa_markers = ["min 60%", "min 65%", "min 70%", "min 75%", "minimum 60%", "minimum 65%", "minimum 70%", "minimum 75%", "6.0 cgpa", "6.5 cgpa", "7.0 cgpa", "7.5 cgpa", "8.0 cgpa", "60% throughout", "70% throughout", "75% throughout"]
 
         has_no_backlog_rule = any(m in lowered for m in no_backlog_markers)
         has_min_cgpa_rule = any(m in lowered for m in min_cgpa_markers)
 
+        # STRICT POSITIVE REQUIREMENT: Must explicitly mention backlogs allowed OR no minimum CGPA/percentage
+        positive_backlog_markers = ["active backlog", "backlog allowed", "backlogs allowed", "backlogs accepted", "with backlogs", "allow backlogs", "standing arrears"]
+        positive_no_cgpa_markers = ["no minimum cgpa", "no cgpa", "no percentage", "no minimum percentage", "no cutoff", "no criteria", "any percentage", "any cgpa", "skill based", "practical test"]
+
+        has_positive_backlog = any(m in lowered for m in positive_backlog_markers)
+        has_positive_no_cgpa = any(m in lowered for m in positive_no_cgpa_markers)
+
         if has_no_backlog_rule or has_min_cgpa_rule:
             domain = "Other"
             relevance_score = 0.0
-        else:
+        elif has_positive_backlog or has_positive_no_cgpa:
             domain = "Mechanical Engineer"
-            relevance_score = 0.95
+            relevance_score = 0.98
+        else:
+            # Does not explicitly mention backlogs allowed or no CGPA -> Reject
+            domain = "Other"
+            relevance_score = 0.0
 
     is_relevant = relevance_score >= 0.8
     is_internship = any(k in lowered for k in ["intern", "internship", "trainee", "stipend"])

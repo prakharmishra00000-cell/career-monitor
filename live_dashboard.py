@@ -116,7 +116,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 const tbody = document.getElementById('leadsTableBody');
                 if (data.leads && data.leads.length > 0) {
                     tbody.innerHTML = data.leads.map(ld => {
-                        const targetLevel = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Entry / Junior';
+                        let targetLevelBadge = '';
+                        if (ld.domain_detected === 'Mechanical Engineer') {
+                            targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ Backlogs Allowed • No Min CGPA</span>`;
+                        } else {
+                            const levelText = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Entry / Junior';
+                            targetLevelBadge = `<span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${levelText}</span>`;
+                        }
+
                         const recProfile = ld.recruiter_profile_url ? `<a href="${ld.recruiter_profile_url}" target="_blank" style="color:#60a5fa; text-decoration:none; font-weight:600;">👤 ${ld.recruiter_name || 'Recruiter'}</a>` : `<span style="color:#9ca3af;">${ld.recruiter_name || 'Recruiter'}</span>`;
                         const postLink = ld.post_url ? `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:600; font-size:13px; background:rgba(52,211,153,0.18); padding:4px 10px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post</a>` : `<span style="color:#6b7280; font-size:12px;">N/A</span>`;
 
@@ -124,7 +131,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         <tr>
                             <td>#${ld.id}</td>
                             <td><strong style="color:#f3f4f6;">${ld.domain_detected}</strong></td>
-                            <td><span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${targetLevel}</span></td>
+                            <td>${targetLevelBadge}</td>
                             <td>${recProfile}</td>
                             <td>${postLink}</td>
                             <td><span class="tag ${ld.is_paid ? 'tag-paid' : 'tag-unpaid'}">${ld.is_paid ? 'PAID' : 'UNPAID'}</span></td>
