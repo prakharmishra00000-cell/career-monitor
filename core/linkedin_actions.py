@@ -115,9 +115,9 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
             }
 
             // Find direct permalink to the post:
-            // LinkedIn embeds post links in the timestamp anchor or share anchor
+            const container = card.closest('li') || card.closest('.artdeco-card') || card;
             let postHref = '';
-            const allAnchors = Array.from(card.querySelectorAll('a'));
+            const allAnchors = Array.from(container.querySelectorAll('a'));
             for (const a of allAnchors) {
                 const href = a.href || '';
                 if (href.includes('/feed/update/') || href.includes('/posts/')) {
@@ -126,17 +126,19 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
                 }
             }
 
-            // Fallback: check if card or parent has urn:li:activity in data-urn or id
-            let urn = card.getAttribute('data-urn') || card.getAttribute('data-id') || card.getAttribute('data-entity-urn') || '';
+            // Fallback: check data-urn, data-entity-urn, data-chameleon-result-urn, or regex on container outerHTML
+            let urn = container.getAttribute('data-urn') || container.getAttribute('data-id') || container.getAttribute('data-entity-urn') || '';
             if (!urn) {
-                const elWithUrn = card.querySelector('[data-urn], [data-entity-urn], [data-id*="activity"]');
+                const elWithUrn = container.querySelector('[data-urn], [data-entity-urn], [data-id*="activity"], [data-chameleon-result-urn]');
                 if (elWithUrn) {
-                    urn = elWithUrn.getAttribute('data-urn') || elWithUrn.getAttribute('data-entity-urn') || elWithUrn.getAttribute('data-id') || '';
+                    urn = elWithUrn.getAttribute('data-urn') || elWithUrn.getAttribute('data-entity-urn') || elWithUrn.getAttribute('data-id') || elWithUrn.getAttribute('data-chameleon-result-urn') || '';
                 }
             }
-            if (!postHref && urn) {
-                const m = urn.match(/urn:li:activity:[0-9]+/);
+            if (!postHref) {
+                const html = (container.outerHTML || '');
+                const m = html.match(/urn:li:(activity|ugcPost|share):[0-9]+/);
                 if (m) {
+                    urn = m[0];
                     postHref = `https://www.linkedin.com/feed/update/${m[0]}/`;
                 }
             }
@@ -174,10 +176,37 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
             recruiter_profile_url = author_url
             if post_href and ("/feed/update/" in post_href or "/posts/" in post_href):
                 post_url = post_href
-            elif "urn:li:activity" in post_id:
+            elif "urn:li:activity" in post_id or "urn:li:ugcPost" in post_id or "urn:li:share" in post_id:
                 post_url = f"https://www.linkedin.com/feed/update/{post_id}/"
             else:
                 post_url = ""  # NEVER fallback to profile URL or search URL
+
+            # Mandatory Gate: Discard if direct post link is unavailable
+            if not post_url or not ("/feed/update/" in post_url or "/posts/" in post_url):
+                print(f"[Filter] Discarding post {post_id}: direct post link unavailable.")
+                lead_data = {
+                    "post_id": post_id,
+                    "post_url": "",
+                    "recruiter_name": recruiter_name,
+                    "recruiter_profile_url": recruiter_profile_url,
+                    "post_text": post_text,
+                    "job_type": "job",
+                    "is_paid": 0,
+                    "domain_detected": "Other",
+                    "relevance_score": 0.0,
+                    "recruiter_instructions": "",
+                    "whatsapp_number": None,
+                    "requires_comment": 0,
+                    "comment_text": "",
+                    "pitch_message": "",
+                    "connection_note": "",
+                    "whatsapp_pitch": "",
+                    "status": "REJECTED_NO_DIRECT_LINK",
+                    "comment_status": "NONE",
+                    "whatsapp_status": "NONE"
+                }
+                insert_lead(lead_data)
+                continue
 
             # Deep AI Evaluation of the Post
             analysis = analyze_post(post_text, recruiter_name=recruiter_name)

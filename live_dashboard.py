@@ -68,14 +68,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="card-sub" id="lastActive">Checking...</div>
             </div>
             <div class="card">
-                <div class="card-label">Qualified Leads Discovered</div>
+                <div class="card-label">Verified Opportunities (Direct Links)</div>
                 <div class="card-value" id="totalLeads">0</div>
-                <div class="card-sub">Freshers & Interns • Mechanical • UI/UX • AI/Prompt • Web Dev</div>
+                <div class="card-sub">Mechanical (2026-2028 Freshers) • UI/UX • AI/Prompt • Web Dev</div>
             </div>
         </div>
 
         <div class="section-title">
-            <span>Authentic Detected Opportunities (No Mock Data)</span>
+            <span>Authentic Detected Opportunities (Direct Links Only)</span>
             <span style="font-size: 12px; color: var(--text-muted);">Auto-refreshes live every 3s</span>
         </div>
 
@@ -112,8 +112,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 document.getElementById('totalLeads').innerText = data.stats.total_leads || 0;
 
                 const tbody = document.getElementById('leadsTableBody');
-                if (data.leads && data.leads.length > 0) {
-                    tbody.innerHTML = data.leads.map(ld => {
+                const validLeads = (data.leads || []).filter(ld => ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/')));
+                if (validLeads.length > 0) {
+                    tbody.innerHTML = validLeads.map(ld => {
                         let targetLevelBadge = '';
                         if (ld.domain_detected === 'Mechanical Engineer') {
                             targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ 2026-2028 Freshers • Backlogs Allowed • No Min CGPA • CTC Mentioned</span>`;
@@ -122,8 +123,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             targetLevelBadge = `<span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${levelText}</span>`;
                         }
 
-                        const isValidPostLink = ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/'));
-                        const postLink = isValidPostLink ? `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:13px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>` : `<span style="color:#6b7280; font-size:12px;">Link unavailable</span>`;
+                        const postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:13px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>`;
 
                         return `
                         <tr>
@@ -138,7 +138,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         `;
                     }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 24px; color: var(--text-muted);">No records found in database yet. Launching live scrape...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 28px; color: var(--text-muted); font-size: 14px;">No verified post opportunities found yet. Continuous live scout active...</td></tr>';
                 }
 
                 if (data.recent_events && data.recent_events.length > 0) {
@@ -179,8 +179,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # Query real leads from DB (Strictly restricted to requested roles only)
+            # Query real leads from DB (Strictly restricted to requested roles only with direct links)
             leads = []
+            verified_count = 0
             try:
                 with get_connection() as conn:
                     cursor = conn.cursor()
@@ -189,10 +190,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
-                          AND (domain_detected != 'Mechanical Engineer' OR (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%'))
+                          AND post_url IS NOT NULL
+                          AND post_url != ''
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
                         ORDER BY id DESC LIMIT 30
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
+
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM leads 
+                        WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
+                          AND status NOT LIKE 'REJECTED%'
+                          AND post_url IS NOT NULL
+                          AND post_url != ''
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
+                    """)
+                    verified_count = cursor.fetchone()[0]
             except Exception:
                 pass
 
@@ -200,7 +213,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "current_stage": live_data.get("current_stage", "IDLE"),
                 "last_active": live_data.get("last_active", ""),
                 "status_message": live_data.get("status_message", ""),
-                "stats": get_stats(),
+                "stats": {
+                    "total_leads": verified_count,
+                    "status_breakdown": get_stats().get("status_breakdown", {})
+                },
                 "quotas": {
                     "dm": get_daily_action_count("DM"),
                     "connect": get_daily_action_count("CONNECTION_REQUEST"),

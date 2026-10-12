@@ -176,7 +176,11 @@ def get_stats() -> Dict[str, Any]:
         cursor = conn.cursor()
         cursor.execute("SELECT status, COUNT(*) FROM leads GROUP BY status")
         status_counts = dict(cursor.fetchall())
-        cursor.execute("SELECT COUNT(*) FROM leads")
+        cursor.execute("""
+            SELECT COUNT(*) FROM leads 
+            WHERE status NOT LIKE 'REJECTED%' 
+              AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
+        """)
         total_leads = cursor.fetchone()[0]
         return {
             "total_leads": total_leads,
