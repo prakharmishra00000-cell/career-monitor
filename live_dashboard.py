@@ -195,7 +195,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # Query real leads from DB: Include direct post links AND recruiter direct contact phone numbers
+            # Query real leads from DB: Strictly direct post links only (/feed/update/, /posts/, /jobs/view/)
             leads = []
             verified_count = 0
             try:
@@ -206,11 +206,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
-                          AND (
-                              (post_url IS NOT NULL AND post_url != '' AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%'))
-                              OR
-                              (whatsapp_number IS NOT NULL AND whatsapp_number != '')
-                          )
+                          AND post_url IS NOT NULL 
+                          AND post_url != '' 
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
                         ORDER BY id DESC LIMIT 100
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
@@ -219,11 +217,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         SELECT COUNT(*) FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
-                          AND (
-                              (post_url IS NOT NULL AND post_url != '' AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%'))
-                              OR
-                              (whatsapp_number IS NOT NULL AND whatsapp_number != '')
-                          )
+                          AND post_url IS NOT NULL 
+                          AND post_url != '' 
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
                     """)
                     verified_count = cursor.fetchone()[0]
             except Exception:
