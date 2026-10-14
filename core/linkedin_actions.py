@@ -262,56 +262,43 @@ async def search_and_ingest_posts(page: Page, query: str, max_posts: int = 10) -
             # HARD CRITERIA VALIDATION GATE FOR MECHANICAL ENGINEERING:
             # 1. MUST be strictly for Freshers / 2026, 2027, or 2028 batch (Zero experienced roles)
             # 2. MUST explicitly mention CTC / LPA / salary / stipend in the post
-            # 3. MUST explicitly state active backlogs allowed OR no minimum CGPA
-            # 4. MUST NOT have prohibited zero-backlog, minimum % cutoff, or experience requirements
-            if analysis.get("domain_detected") == "Mechanical Engineer":
-                raw_lower = post_text.lower()
+            # FRESHERS FILTER GATE (Applies across Mechanical, UI/UX, Web Dev, Prompt Eng):
+            raw_lower = post_text.lower()
+            fresher_cues = ["fresher", "freshers", "intern", "internship", "trainee", "entry level", "student", "students", "college", "2026", "2027", "2028", "junior", "campus", "get"]
+            senior_cues = ["3+ year", "4+ year", "5+ year", "6+ year", "7+ year", "8+ year", "10+ year", "lead architect", "senior architect"]
 
-                # Batch / Fresher eligibility (Strictly 2026, 2027, 2028 freshers only)
-                batch_cues = ["2026", "2027", "2028", "fresher", "freshers", "intern", "internship", "graduate engineer trainee", "get trainee", "entry level", "junior engineer"]
-                has_target_batch = any(b in raw_lower for b in batch_cues)
+            is_fresher_eligible = any(f in raw_lower for f in fresher_cues)
+            is_senior_disqualified = any(s in raw_lower for s in senior_cues)
 
-                # Prohibited experienced markers (e.g. 1+ years, 2+ years, 3+ years, senior)
-                experienced_cues = ["years of experience", "years experience", "yr experience", "yrs experience", "1+ year", "2+ year", "3+ year", "4+ year", "5+ year", "senior", "lead engineer"]
-                has_experience_required = any(exp in raw_lower for exp in experienced_cues)
+            # Auto-extract WhatsApp / Contact number
+            extracted_wa = extract_potential_phone_number(post_text) or analysis.get("whatsapp_number")
+            analysis["whatsapp_number"] = extracted_wa
 
-                allowed_backlog_cues = ["active backlog", "backlog allowed", "backlogs allowed", "backlogs accepted", "with backlog", "allow backlog", "standing arrear", "arrear allowed"]
-                no_cgpa_cues = ["no minimum cgpa", "no cgpa", "no percentage", "no minimum percentage", "no cutoff", "no criteria", "any percentage", "any cgpa", "skill based", "practical test only"]
-                prohibited_cues = ["no active backlog", "no backlog", "zero backlog", "without backlog", "min 60%", "min 65%", "min 70%", "min 75%", "minimum 60%", "minimum 70%", "minimum 75%", "6.0 cgpa", "6.5 cgpa", "7.0 cgpa", "7.5 cgpa", "8.0 cgpa"]
-                salary_ctc_cues = ["lpa", "ctc", "per annum", "/annum", "inr", "salary", "stipend", "pm", "/month", "per month"]
-
-                has_prohibited = any(p in raw_lower for p in prohibited_cues)
-                has_allowed_backlog = any(b in raw_lower for b in allowed_backlog_cues)
-                has_no_cgpa = any(c in raw_lower for c in no_cgpa_cues)
-                has_salary_or_ctc = any(s in raw_lower for s in salary_ctc_cues)
-
-                # Strict requirement:
-                # Must be 2026/2027/2028/fresher + NO experience required + CTC/LPA present + Backlog allowed/No CGPA present + NO prohibited cutoffs
-                if not has_target_batch or has_experience_required or has_prohibited or not (has_allowed_backlog or has_no_cgpa) or not has_salary_or_ctc:
-                    print(f"[Filter] Discarding Mechanical post {post_id}: does not meet 2026-2028 batch + CTC/LPA + backlogs-allowed/no-CGPA criteria.")
-                    lead_data = {
-                        "post_id": post_id,
-                        "post_url": post_url,
-                        "recruiter_name": recruiter_name,
-                        "recruiter_profile_url": recruiter_profile_url,
-                        "post_text": post_text,
-                        "job_type": analysis.get("job_type", "job"),
-                        "is_paid": 1,
-                        "domain_detected": "Mechanical Engineer",
-                        "relevance_score": 0.0,
-                        "recruiter_instructions": "",
-                        "whatsapp_number": None,
-                        "requires_comment": 0,
-                        "comment_text": "",
-                        "pitch_message": "",
-                        "connection_note": "",
-                        "whatsapp_pitch": "",
-                        "status": "REJECTED_STRICT_CRITERIA",
-                        "comment_status": "NONE",
-                        "whatsapp_status": "NONE"
-                    }
-                    insert_lead(lead_data)
-                    continue
+            if not is_fresher_eligible or is_senior_disqualified:
+                print(f"[Filter] Discarding non-fresher post: {post_id}")
+                lead_data = {
+                    "post_id": post_id,
+                    "post_url": post_url,
+                    "recruiter_name": recruiter_name,
+                    "recruiter_profile_url": recruiter_profile_url,
+                    "post_text": post_text,
+                    "job_type": analysis.get("job_type", "job"),
+                    "is_paid": 1 if analysis.get("is_paid") else 0,
+                    "domain_detected": analysis.get("domain_detected", "Other"),
+                    "relevance_score": 0.0,
+                    "recruiter_instructions": "",
+                    "whatsapp_number": extracted_wa,
+                    "requires_comment": 0,
+                    "comment_text": "",
+                    "pitch_message": "",
+                    "connection_note": "",
+                    "whatsapp_pitch": "",
+                    "status": "REJECTED_EXPERIENCED",
+                    "comment_status": "NONE",
+                    "whatsapp_status": "NONE"
+                }
+                insert_lead(lead_data)
+                continue
 
             # Qualified lead! Resolve direct permalink from recruiter profile if missing!
             if not post_url and recruiter_profile_url and "linkedin.com/in/" in recruiter_profile_url:

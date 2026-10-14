@@ -86,13 +86,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <th>Role</th>
                     <th>Target Level</th>
                     <th>Direct Post Link</th>
+                    <th>Recruiter WhatsApp / Contact</th>
                     <th>Compensation</th>
                     <th>Status</th>
                     <th>Time</th>
                 </tr>
             </thead>
             <tbody id="leadsTableBody">
-                <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading live opportunities...</td></tr>
+                <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading live opportunities...</td></tr>
             </tbody>
         </table>
 
@@ -112,18 +113,34 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 document.getElementById('totalLeads').innerText = data.stats.total_leads || 0;
 
                 const tbody = document.getElementById('leadsTableBody');
-                const validLeads = (data.leads || []).filter(ld => ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/')));
+                const validLeads = data.leads || [];
                 if (validLeads.length > 0) {
                     tbody.innerHTML = validLeads.map(ld => {
                         let targetLevelBadge = '';
                         if (ld.domain_detected === 'Mechanical Engineer') {
-                            targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ 2026-2028 Freshers • Backlogs Allowed • No Min CGPA • CTC Mentioned</span>`;
+                            targetLevelBadge = `<span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:700; border:1px solid #d97706; display:inline-block;">⚡ Freshers / Trainees (2026-2028)</span>`;
                         } else {
-                            const levelText = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Entry / Junior';
+                            const levelText = (ld.job_type === 'internship') ? 'Fresher / Intern' : 'Fresher / Junior';
                             targetLevelBadge = `<span style="background:rgba(99,102,241,0.2); color:#a5b4fc; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600;">${levelText}</span>`;
                         }
 
-                        const postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:13px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>`;
+                        let postLink = '';
+                        if (ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/') || ld.post_url.includes('/jobs/view/'))) {
+                            postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:12px; background:rgba(52,211,153,0.18); padding:5px 10px; border-radius:6px; border:1px solid #10b981;">🔗 Post Link</a>`;
+                        } else if (ld.recruiter_profile_url) {
+                            postLink = `<a href="${ld.recruiter_profile_url}" target="_blank" style="display:inline-block; color:#60a5fa; text-decoration:none; font-weight:600; font-size:12px; background:rgba(59,130,246,0.15); padding:5px 10px; border-radius:6px; border:1px solid #3b82f6;">👤 Recruiter Profile</a>`;
+                        } else {
+                            postLink = `<span style="color:#9ca3af; font-size:12px;">Direct Lead</span>`;
+                        }
+
+                        let waContact = '';
+                        if (ld.whatsapp_number) {
+                            const cleanNum = ld.whatsapp_number.replace(/[^0-9]/g, '');
+                            const chatNum = cleanNum.startsWith('91') && cleanNum.length === 12 ? cleanNum : (cleanNum.length === 10 ? '91' + cleanNum : cleanNum);
+                            waContact = `<a href="https://wa.me/${chatNum}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; background:rgba(16,185,129,0.2); color:#10b981; padding:4px 10px; border-radius:6px; font-weight:700; font-size:12px; text-decoration:none; border:1px solid #10b981;">💬 +${chatNum}</a>`;
+                        } else {
+                            waContact = `<span style="color:#6b7280; font-size:12px;">Email / Apply Form</span>`;
+                        }
 
                         return `
                         <tr>
@@ -131,6 +148,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             <td><strong style="color:#f3f4f6;">${ld.domain_detected}</strong></td>
                             <td>${targetLevelBadge}</td>
                             <td>${postLink}</td>
+                            <td>${waContact}</td>
                             <td><span class="tag ${ld.is_paid ? 'tag-paid' : 'tag-unpaid'}">${ld.is_paid ? 'PAID' : 'UNPAID'}</span></td>
                             <td><span class="tag tag-status">${ld.status}</span></td>
                             <td style="color: var(--text-muted); font-size: 12px;">${ld.created_at}</td>
@@ -138,7 +156,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         `;
                     }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 28px; color: var(--text-muted); font-size: 14px;">No verified post opportunities found yet. Continuous live scout active...</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 28px; color: var(--text-muted); font-size: 14px;">No verified post opportunities found yet. Continuous live scout active...</td></tr>';
                 }
 
                 if (data.recent_events && data.recent_events.length > 0) {
@@ -179,21 +197,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # Query real leads from DB (Strictly restricted to requested roles only with direct links)
+            # Query real leads from DB
             leads = []
             verified_count = 0
             try:
                 with get_connection() as conn:
                     cursor = conn.cursor()
                     cursor.execute("""
-                        SELECT id, recruiter_name, recruiter_profile_url, post_url, domain_detected, job_type, is_paid, status, whatsapp_status, created_at
+                        SELECT id, recruiter_name, recruiter_profile_url, post_url, domain_detected, job_type, is_paid, status, whatsapp_number, whatsapp_status, created_at
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
-                          AND post_url IS NOT NULL
-                          AND post_url != ''
-                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
-                        ORDER BY id DESC LIMIT 30
+                        ORDER BY id DESC LIMIT 100
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
 
@@ -201,9 +216,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         SELECT COUNT(*) FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
-                          AND post_url IS NOT NULL
-                          AND post_url != ''
-                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
                     """)
                     verified_count = cursor.fetchone()[0]
             except Exception:

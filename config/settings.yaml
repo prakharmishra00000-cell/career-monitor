@@ -7,21 +7,24 @@ bot:
   check_connections_interval_minutes: 15 # Frequency of accepted connection checks
 
 search_queries:
-  - 'UI UX Designer hiring paid'
-  - 'UI UX Designer fresher hiring'
-  - 'Prompt Engineer hiring'
-  - 'Prompt Engineer fresher paid'
-  - 'Web Developer fresher hiring'
-  - 'Mechanical fresher hiring 2027 batch'
-  - 'Mechanical fresher hiring 2026 batch'
-  - 'Mechanical fresher hiring 2028 batch'
-  - 'Mechanical Engineering fresher backlogs allowed'
-  - 'Mechanical fresher no minimum cgpa criteria'
-  - 'Mechanical Engineer fresher no percentage criteria'
-  - 'Mechanical Engineer fresher CTC LPA backlogs'
-  - 'Mechanical Engineer internship stipend 2027'
-  - 'Graduate Engineer Trainee Mechanical 2026 2027'
+  # Mechanical Engineering Freshers with Direct Contact
+  - 'Mechanical fresher hiring WhatsApp'
+  - 'Mechanical Engineering fresher contact number'
   - 'GET Mechanical Engineering fresher hiring'
+  - 'Diploma Mechanical trainee WhatsApp'
+  - 'Mechanical fresher 2026 2027 batch hiring'
+  # UI/UX Designer Freshers with Direct Contact
+  - 'UI UX Designer fresher hiring WhatsApp'
+  - 'UI UX Designer intern contact number'
+  - 'Junior UI UX designer hiring paid'
+  # Web Development Freshers with Direct Contact
+  - 'Web developer fresher hiring WhatsApp'
+  - 'Frontend developer intern contact number'
+  - 'Full stack developer fresher hiring WhatsApp'
+  # AI & Prompt Engineering Freshers with Direct Contact
+  - 'Prompt Engineer fresher hiring'
+  - 'Generative AI intern fresher hiring WhatsApp'
+  - 'AI ML engineer fresher trainee contact'
 
 filters:
   strict_paid_only: true
