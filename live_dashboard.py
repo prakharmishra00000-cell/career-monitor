@@ -126,11 +126,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
                         let postLink = '';
                         if (ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/') || ld.post_url.includes('/jobs/view/'))) {
-                            postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:12px; background:rgba(52,211,153,0.18); padding:5px 10px; border-radius:6px; border:1px solid #10b981;">🔗 Post Link</a>`;
-                        } else if (ld.recruiter_profile_url) {
-                            postLink = `<a href="${ld.recruiter_profile_url}" target="_blank" style="display:inline-block; color:#60a5fa; text-decoration:none; font-weight:600; font-size:12px; background:rgba(59,130,246,0.15); padding:5px 10px; border-radius:6px; border:1px solid #3b82f6;">👤 Recruiter Profile</a>`;
+                            postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:12px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>`;
                         } else {
-                            postLink = `<span style="color:#9ca3af; font-size:12px;">Direct Lead</span>`;
+                            postLink = `<span style="color:#ef4444; font-size:12px;">Link Pending Verification</span>`;
                         }
 
                         let waContact = '';
@@ -197,7 +195,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
-            # Query real leads from DB
+            # Query real leads from DB (Strictly direct post links only: /feed/update/, /posts/, /jobs/view/)
             leads = []
             verified_count = 0
             try:
@@ -208,6 +206,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
+                          AND post_url IS NOT NULL
+                          AND post_url != ''
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
                         ORDER BY id DESC LIMIT 100
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
@@ -216,6 +217,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         SELECT COUNT(*) FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
                           AND status NOT LIKE 'REJECTED%'
+                          AND post_url IS NOT NULL
+                          AND post_url != ''
+                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
                     """)
                     verified_count = cursor.fetchone()[0]
             except Exception:
