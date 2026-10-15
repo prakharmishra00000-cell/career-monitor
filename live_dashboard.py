@@ -68,14 +68,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="card-sub" id="lastActive">Checking...</div>
             </div>
             <div class="card">
-                <div class="card-label">Verified Opportunities (Direct Links)</div>
+                <div class="card-label">Verified Opportunities (Recruiter WhatsApp & Direct Links)</div>
                 <div class="card-value" id="totalLeads">0</div>
                 <div class="card-sub">Mechanical (2026-2028 Freshers) • UI/UX • AI/Prompt • Web Dev</div>
             </div>
         </div>
 
         <div class="section-title">
-            <span>Authentic Detected Opportunities (Direct Links Only)</span>
+            <span>Authentic Detected Opportunities (WhatsApp & Direct Links)</span>
             <span style="font-size: 12px; color: var(--text-muted);">Auto-refreshes live every 3s</span>
         </div>
 
@@ -128,7 +128,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         if (ld.post_url && (ld.post_url.includes('/feed/update/') || ld.post_url.includes('/posts/') || ld.post_url.includes('/jobs/view/'))) {
                             postLink = `<a href="${ld.post_url}" target="_blank" style="display:inline-block; color:#34d399; text-decoration:none; font-weight:700; font-size:12px; background:rgba(52,211,153,0.18); padding:5px 12px; border-radius:6px; border:1px solid #10b981;">🔗 Direct Post Link</a>`;
                         } else {
-                            postLink = `<span style="color:#ef4444; font-size:12px;">Link Pending Verification</span>`;
+                            postLink = `<span style="color:#f59e0b; font-size:12px; font-weight:600; background:rgba(245,158,11,0.15); padding:4px 8px; border-radius:4px; border:1px solid #d97706;">Direct Post Link Pending</span>`;
                         }
 
                         let waContact = '';
@@ -137,7 +137,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             const chatNum = cleanNum.startsWith('91') && cleanNum.length === 12 ? cleanNum : (cleanNum.length === 10 ? '91' + cleanNum : cleanNum);
                             waContact = `<a href="https://wa.me/${chatNum}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; background:rgba(16,185,129,0.2); color:#10b981; padding:4px 10px; border-radius:6px; font-weight:700; font-size:12px; text-decoration:none; border:1px solid #10b981;">💬 +${chatNum}</a>`;
                         } else {
-                            waContact = `<span style="color:#6b7280; font-size:12px;">Email / Apply Form</span>`;
+                            waContact = `<span style="color:#6b7280; font-size:12px;">Contact on WhatsApp</span>`;
                         }
 
                         return `
@@ -205,21 +205,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         SELECT id, recruiter_name, recruiter_profile_url, post_url, domain_detected, job_type, is_paid, status, whatsapp_number, whatsapp_status, created_at
                         FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
-                          AND status NOT LIKE 'REJECTED%'
-                          AND post_url IS NOT NULL 
-                          AND post_url != '' 
-                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
-                        ORDER BY id DESC LIMIT 100
+                          AND whatsapp_number IS NOT NULL 
+                          AND length(whatsapp_number) >= 8
+                        ORDER BY id DESC LIMIT 250
                     """)
                     leads = [dict(r) for r in cursor.fetchall()]
 
                     cursor.execute("""
                         SELECT COUNT(*) FROM leads 
                         WHERE domain_detected IN ('UI/UX Designer', 'Prompt Engineer', 'Web Developer', 'Mechanical Engineer')
-                          AND status NOT LIKE 'REJECTED%'
-                          AND post_url IS NOT NULL 
-                          AND post_url != '' 
-                          AND (post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%' OR post_url LIKE '%/jobs/view/%')
+                          AND whatsapp_number IS NOT NULL 
+                          AND length(whatsapp_number) >= 8
                     """)
                     verified_count = cursor.fetchone()[0]
             except Exception:

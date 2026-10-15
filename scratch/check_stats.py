@@ -2,15 +2,23 @@ import sqlite3
 
 conn = sqlite3.connect('automator.db')
 c = conn.cursor()
-c.execute("SELECT COUNT(*) FROM leads")
-total = c.fetchone()[0]
 
-c.execute("SELECT COUNT(*) FROM leads WHERE post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%'")
-verified = c.fetchone()[0]
+total = c.execute("SELECT count(*) FROM leads").fetchone()[0]
+with_wa = c.execute("SELECT count(*) FROM leads WHERE whatsapp_number IS NOT NULL AND length(whatsapp_number) > 5").fetchone()[0]
+with_wa_and_direct_url = c.execute("""
+    SELECT count(*) FROM leads 
+    WHERE whatsapp_number IS NOT NULL AND length(whatsapp_number) > 5
+      AND (post_url LIKE '%/jobs/view/%' OR post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%')
+""").fetchone()[0]
 
-c.execute("SELECT id, domain_detected, recruiter_name, post_url, created_at FROM leads WHERE post_url LIKE '%/feed/update/%' OR post_url LIKE '%/posts/%'")
-verified_rows = c.fetchall()
+print(f"Total leads: {total}")
+print(f"Leads with WhatsApp number: {with_wa}")
+print(f"Leads with WhatsApp number & direct link: {with_wa_and_direct_url}")
 
-print(f"Total leads: {total} | Verified with Direct Link: {verified}")
-for r in verified_rows:
-    print(r)
+print("\nBreakdown by domain (with WhatsApp):")
+for r in c.execute("""
+    SELECT domain_detected, count(*) FROM leads
+    WHERE whatsapp_number IS NOT NULL AND length(whatsapp_number) > 5
+    GROUP BY domain_detected
+""").fetchall():
+    print(f"  {r[0]}: {r[1]}")
